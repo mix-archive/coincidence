@@ -16,72 +16,33 @@ build-backend = "pdm.backend"
 dev = [
     "ruff>=0.8.3",
     "pytest>=8.3.4",
+    "pytest-sugar>=1.0.0",
+    "pytest-cov>=6.0.0",
 ]
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
+pythonPlatform = "All"
 
 [tool.ruff]
-lint.select = [
-    "F",     # Pyflakes
-    "E",     # Pycodestyle errors
-    "W",     # Pycodestyle warnings
-    "C90",   # mccabe
-    "I",     # isort
-    "N",     # pep8-naming
-    "UP",    # pyupgrade
-    "YTT",   # flake8-2020
-    "ANN",   # flake8-annotations
-    "ASYNC", # flake8-async
-    "S",     # flake8-bandit
-    "BLE",   # flake8-blind-except
-    "B",     # flake8-bugbear
-    "A",     # flake8-builtins
-    "COM",   # flake8-commas
-    "C4",    # flake8-comprehensions
-    "DTZ",   # flake8-datetimez
-    "T10",   # flake8-debugger
-    "EXE",   # flake8-executable
-    "FA",    # flake8-future-annotations
-    "ISC",   # flake8-implicit-str-concat
-    "ICN",   # flake8-import-conventions
-    "LOG",   # flake8-logging
-    "G",     # flake8-logging-format
-    "INP",   # flake8-no-pep420
-    "PIE",   # flake8-pie
-    "T20",   # flake8-print
-    "PYI",   # flake8-pyi
-    "PT",    # flake8-pytest-style
-    "Q",     # flake8-quotes
-    "RSE",   # flake8-raise
-    "RET",   # flake8-return
-    "SLF",   # flake8-self
-    "SLOT",  # flake8-slot
-    "SIM",   # flake8-simplify
-    "TID",   # flake8-tidy-imports
-    "TC",    # flake8-type-checking
-    "INT",   # flake8-gettext
-    "ARG",   # flake8-unused-arguments
-    "PTH",   # flake8-use-pathlib
-    "TD",    # flake8-todos
-    "FIX",   # flake8-fixme
-    "ERA",   # eradicate
-    "PD",    # pandas-vet
-    "PGH",   # pygrep-hooks
-    "PL",    # pylint
-    "TRY",   # tryceratops
-    "NPY",   # numpy
-    "PERF",  # perflint
-    "FURB",  # refurb
-    "RUF",   # ruff specific rules
-]
+lint.select = ["ALL"]
 lint.ignore = [
-    "B008",   # Do not perform calls in argument defaults
-    "TRY003", # Avoid specifying long messages outside the exception class
-    "ANN201", # Missing type annotation for self in method
+    "D1",      # Missing docstring
+    "EM",      # flake8-errmsg 
+    "TRY003",  # Avoid specifying long messages outside the exception class
+    "ANN2",    # Missing return type annotation
+    "PLC0414", # Import alias does not rename original package
+    "D213",    # Multi-line docstring summary should start at the second line (conflict with D212)
+    "D203",    # No blank lines allowed before class docstring (conflict with formatter)
+    "COM812",  # Trailing comma missing (conflict with formatter)
+    "ISC001",  # Trailing comma present (conflict with formatter)
 ]
 target-version = "py312"
 
 [tool.pdm]
 distribution = true
 
+[tool.pdm.scripts]
+test = "pytest --cov --cov-report=term-missing ."
+format = "ruff format"
+lint = "ruff check"
