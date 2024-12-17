@@ -11,26 +11,9 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
     EllipticCurveSignatureAlgorithm,
     generate_private_key,
 )
-from cryptography.hazmat.primitives.hashes import SHA256, Hash, HashAlgorithm
 
 from .bech32 import encode as bech32_encode  # pyright:ignore[reportUnknownVariableType]
-
-
-class RIPEMD160(HashAlgorithm):
-    @property
-    @override
-    def name(self):
-        return "ripemd160"
-
-    @property
-    @override
-    def digest_size(self):
-        return 20
-
-    @property
-    @override
-    def block_size(self):
-        return 64
+from .utils import ripemd160, sha256
 
 
 @final
@@ -83,11 +66,7 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
             encoding=serialization.Encoding.X962,
             format=serialization.PublicFormat.UncompressedPoint,
         )
-        sha256_hash = Hash(SHA256())
-        sha256_hash.update(public_bytes)
-        ripemd160_hash = Hash(RIPEMD160())
-        ripemd160_hash.update(sha256_hash.finalize())
-        return ripemd160_hash.finalize()
+        return ripemd160(sha256(public_bytes))
 
     def address(
         self,
