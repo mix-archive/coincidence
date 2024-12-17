@@ -12,8 +12,6 @@ from coincidence.transaction.types import (
     varint,
 )
 
-# ruff: noqa: S101
-
 
 @pytest.mark.parametrize(
     ("value", "expected"),
