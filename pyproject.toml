@@ -12,11 +12,11 @@ license = { text = "AGPL-3.0-or-later" }
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-[tool.pdm]
-distribution = true
-
 [dependency-groups]
-dev = ["ruff>=0.8.3"]
+dev = [
+    "ruff>=0.8.3",
+    "pytest>=8.3.4",
+]
 
 [tool.basedpyright]
 typeCheckingMode = "recommended"
@@ -81,3 +81,7 @@ lint.ignore = [
     "ANN201", # Missing type annotation for self in method
 ]
 target-version = "py312"
+
+[tool.pdm]
+distribution = true
+
