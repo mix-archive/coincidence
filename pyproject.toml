@@ -3,7 +3,7 @@ name = "coincidence"
 version = "0.1.0"
 description = "A Bitcoin implementation built from scratch for educational purposes."
 authors = [{ name = "Mix", email = "32300164+mnixry@users.noreply.github.com" }]
-dependencies = ["base58>=2.1.1", "pycryptodomex>=3.21.0"]
+dependencies = ["base58>=2.1.1", "cryptography>=44.0.0"]
 requires-python = ">=3.12"
 readme = "README.md"
 license = { text = "AGPL-3.0-or-later" }
