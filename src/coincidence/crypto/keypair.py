@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
 )
 from cryptography.hazmat.primitives.hashes import SHA256, Hash, HashAlgorithm
 
-from . import bech32
+from .bech32 import encode as bech32_encode  # pyright:ignore[reportUnknownVariableType]
 
 
 class RIPEMD160(HashAlgorithm):
@@ -101,7 +101,7 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
             }[network][variant]
             return base58.b58encode_check(version + self.hash).decode("ascii")
         # https://en.bitcoin.it/wiki/Bech32
-        result = bech32.encode(  # pyright:ignore[reportUnknownVariableType,reportUnknownMemberType]
+        result = bech32_encode(  # pyright:ignore[reportUnknownVariableType]
             hrp={
                 "main": "bc",
                 "test": "tb",
