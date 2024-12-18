@@ -45,14 +45,14 @@ def test_serialize_command_bytes():
 
 
 def test_transaction_script_serialization():
-    script = TransactionScript(commands=[TransactionOpCode.OP_1, b"hello"])
+    script = TransactionScript(commands=(TransactionOpCode.OP_1, b"hello"))
     serialized = script.serialize()
     deserialized = TransactionScript.deserialize(BytesIO(serialized))
     assert deserialized == script
 
 
 def test_transaction_input_serialization():
-    script = TransactionScript(commands=[TransactionOpCode.OP_1, b"hello"])
+    script = TransactionScript(commands=(TransactionOpCode.OP_1, b"hello"))
     tx_input = TransactionInput(
         previous_transaction=b"\x00" * 32,
         previous_index=0,
@@ -65,7 +65,7 @@ def test_transaction_input_serialization():
 
 
 def test_transaction_output_serialization():
-    script = TransactionScript(commands=[TransactionOpCode.OP_1, b"hello"])
+    script = TransactionScript(commands=(TransactionOpCode.OP_1, b"hello"))
     tx_output = TransactionOutput(
         value=1000,
         script_pubkey=script,
@@ -76,7 +76,7 @@ def test_transaction_output_serialization():
 
 
 def test_transaction_serialization():
-    script = TransactionScript(commands=[TransactionOpCode.OP_1, b"hello"])
+    script = TransactionScript(commands=(TransactionOpCode.OP_1, b"hello"))
     tx_input = TransactionInput(
         previous_transaction=b"\x00" * 32,
         previous_index=0,
@@ -89,8 +89,8 @@ def test_transaction_serialization():
     )
     transaction = Transaction(
         version=1,
-        inputs=[tx_input],
-        outputs=[tx_output],
+        inputs=(tx_input,),
+        outputs=(tx_output,),
         locktime=0,
     )
     serialized = transaction.serialize()
@@ -135,34 +135,32 @@ def test_transaction_realworld():
     00000000 ................................... locktime: 0 (a block height)
     ```
     """
+    input_ = TransactionInput(
+        previous_transaction=b"\x7b\x1e\xab\xe0\x20\x9b\x1f\xe7\x94\x12\x45\x75\xef\x80\x70\x57\xc7\x7a\xda\x21\x38\xae\x4f\xa8\xd6\xc4\xde\x03\x98\xa1\x4f\x3f",
+        previous_index=0,
+        script_signature=TransactionScript(
+            commands=(
+                b"\x30\x45\x02\x21\x00\x89\x49\xf0\xcb\x40\x00\x94\xad\x2b\x5e\xb3\x99\xd5\x9d\x01\xc1\x4d\x73\xd8\xfe\x6e\x96\xdf\x1a\x71\x50\xde\xb3\x88\xab\x89\x35\x02\x20\x79\x65\x60\x90\xd7\xf6\xba\xc4\xc9\xa9\x4e\x0a\xad\x31\x1a\x42\x68\xe0\x82\xa7\x25\xf8\xae\xae\x05\x73\xfb\x12\xff\x86\x6a\x5f\x01",
+            ),
+        ),
+        sequence=0xFFFFFFFF,
+    )
+    output = TransactionOutput(
+        value=49_999_900_00,
+        script_pubkey=TransactionScript(
+            commands=(
+                TransactionOpCode.OP_DUP,
+                TransactionOpCode.OP_HASH160,
+                b"\xcb\xc2\x0a\x76\x64\xf2\xf6\x9e\x53\x55\xaa\x42\x70\x45\xbc\x15\xe7\xc6\xc7\x72",
+                TransactionOpCode.OP_EQUALVERIFY,
+                TransactionOpCode.OP_CHECKSIG,
+            ),
+        ),
+    )
     tx = Transaction(
         version=1,
-        inputs=[
-            TransactionInput(
-                previous_transaction=b"\x7b\x1e\xab\xe0\x20\x9b\x1f\xe7\x94\x12\x45\x75\xef\x80\x70\x57\xc7\x7a\xda\x21\x38\xae\x4f\xa8\xd6\xc4\xde\x03\x98\xa1\x4f\x3f",
-                previous_index=0,
-                script_signature=TransactionScript(
-                    commands=[
-                        b"\x30\x45\x02\x21\x00\x89\x49\xf0\xcb\x40\x00\x94\xad\x2b\x5e\xb3\x99\xd5\x9d\x01\xc1\x4d\x73\xd8\xfe\x6e\x96\xdf\x1a\x71\x50\xde\xb3\x88\xab\x89\x35\x02\x20\x79\x65\x60\x90\xd7\xf6\xba\xc4\xc9\xa9\x4e\x0a\xad\x31\x1a\x42\x68\xe0\x82\xa7\x25\xf8\xae\xae\x05\x73\xfb\x12\xff\x86\x6a\x5f\x01",
-                    ],
-                ),
-                sequence=0xFFFFFFFF,
-            ),
-        ],
-        outputs=[
-            TransactionOutput(
-                value=49_999_900_00,
-                script_pubkey=TransactionScript(
-                    commands=[
-                        TransactionOpCode.OP_DUP,
-                        TransactionOpCode.OP_HASH160,
-                        b"\xcb\xc2\x0a\x76\x64\xf2\xf6\x9e\x53\x55\xaa\x42\x70\x45\xbc\x15\xe7\xc6\xc7\x72",
-                        TransactionOpCode.OP_EQUALVERIFY,
-                        TransactionOpCode.OP_CHECKSIG,
-                    ],
-                ),
-            ),
-        ],
+        inputs=(input_,),
+        outputs=(output,),
         locktime=0,
     )
 

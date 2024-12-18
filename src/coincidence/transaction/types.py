@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import IntEnum
 from io import BytesIO
-from typing import IO
+from typing import IO, Self
 
 
 class varint(int):  # noqa:N801
@@ -207,7 +207,7 @@ def serialize_command_bytes(data: bytes):
     return bytes(ret)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransactionScript:
     """Bitcoin transaction script.
 
@@ -215,7 +215,7 @@ class TransactionScript:
 
     """
 
-    commands: list[TransactionOpCode | bytes]
+    commands: tuple[TransactionOpCode | bytes, ...]
 
     def serialize(self):
         """Serialize the transaction script."""
@@ -252,10 +252,13 @@ class TransactionScript:
                     commands.append(TransactionOpCode(code))
                 case _:
                     raise ValueError(f"Invalid opcode: {opcode}")
-        return cls(commands)
+        return cls(tuple(commands))
+
+    def __add__(self, other: Self) -> Self:
+        return self.__class__(self.commands + other.commands)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransactionInput:
     previous_transaction: bytes
     """Previous transaction SHA256 hash"""
@@ -282,7 +285,7 @@ class TransactionInput:
         return cls(previous_transaction, previous_index, script_signature, sequence)
 
 
-@dataclass
+@dataclass(frozen=True)
 class TransactionOutput:
     value: int
     """Value in satoshis (1 BTC = 100_000_000 satoshis)"""
@@ -299,11 +302,11 @@ class TransactionOutput:
         return cls(value, script_pubkey)
 
 
-@dataclass
+@dataclass(frozen=True)
 class Transaction:
     version: int
-    inputs: list[TransactionInput]
-    outputs: list[TransactionOutput]
+    inputs: tuple[TransactionInput, ...]
+    outputs: tuple[TransactionOutput, ...]
     locktime: int
     """Block height or timestamp at which this transaction is valid"""
     hash: bytes | None = None
@@ -321,11 +324,11 @@ class Transaction:
     @classmethod
     def deserialize(cls, data: IO[bytes]):
         version = int.from_bytes(data.read(4), "little")
-        inputs = [
+        inputs = tuple(
             TransactionInput.deserialize(data) for _ in range(varint.deserialize(data))
-        ]
-        outputs = [
+        )
+        outputs = tuple(
             TransactionOutput.deserialize(data) for _ in range(varint.deserialize(data))
-        ]
+        )
         locktime = int.from_bytes(data.read(4), "little")
         return cls(version, inputs, outputs, locktime)
