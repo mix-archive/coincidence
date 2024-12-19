@@ -201,7 +201,7 @@ def serialize_command_bytes(data: bytes):
         ret += TransactionOpCode.OP_PUSHDATA2.serialize() + length.to_bytes(2, "little")
     elif length < (1 << 32):
         ret += TransactionOpCode.OP_PUSHDATA4.serialize() + length.to_bytes(4, "little")
-    else:
+    else:  # pragma: no cover
         raise ValueError("Data is too long")
     ret += data
     return bytes(ret)
@@ -224,7 +224,7 @@ class TransactionScript:
             match command:
                 case TransactionOpCode(code):
                     ret += code.serialize()
-                case bytes(data):
+                case bytes(data):  # pragma: no branch
                     ret += serialize_command_bytes(data)
         return varint(len(ret)).serialize() + bytes(ret)
 
