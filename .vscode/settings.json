@@ -18,6 +18,8 @@
     "python.testing.pytestEnabled": true,
     "basedpyright.analysis.diagnosticMode": "workspace",
     "cSpell.words": [
+        "extendleft",
+        "popleft",
         "RIPEMD",
         "VARINT"
     ]
