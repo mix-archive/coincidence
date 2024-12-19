@@ -39,6 +39,7 @@ ignore = [
     "D203",    # No blank lines allowed before class docstring (conflict with formatter)
     "COM812",  # Trailing comma missing (conflict with formatter)
     "ISC001",  # Trailing comma present (conflict with formatter)
+    "TD002",   # Missing author in TODO
 ]
 
 [tool.ruff.lint.extend-per-file-ignores]
