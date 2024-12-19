@@ -1,6 +1,6 @@
 import pytest
 
-from coincidence.crypto.utils import ripemd160, sha256, verify_signature
+from coincidence.crypto.utils import ripemd160, sha1, sha256, verify_signature
 
 
 @pytest.mark.parametrize(
@@ -76,6 +76,31 @@ def test_sha256_hash(data: bytes, expected: bytes):
     result = sha256(data)
     assert result == expected
     mutated = sha256(data + b" ")
+    assert result != mutated
+
+
+@pytest.mark.parametrize(
+    ("data", "expected"),
+    [
+        # test vectors from https://www.di-mgt.com.au/sha_testvectors.html
+        (
+            b"abc",
+            bytes.fromhex("a9993e36 4706816a ba3e2571 7850c26c 9cd0d89d"),
+        ),
+        (
+            b"",
+            bytes.fromhex("da39a3ee 5e6b4b0d 3255bfef 95601890 afd80709"),
+        ),
+        (
+            b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq",
+            bytes.fromhex("84983e44 1c3bd26e baae4aa1 f95129e5 e54670f1"),
+        ),
+    ],
+)
+def test_sha1_hash(data: bytes, expected: bytes):
+    result = sha1(data)
+    assert result == expected
+    mutated = sha1(data + b" ")
     assert result != mutated
 
 

@@ -7,7 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.ec import (
     EllipticCurvePublicKey,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
-from cryptography.hazmat.primitives.hashes import SHA256, Hash, HashAlgorithm
+from cryptography.hazmat.primitives.hashes import SHA1, SHA256, Hash, HashAlgorithm
 
 
 class RIPEMD160(HashAlgorithm):
@@ -37,6 +37,13 @@ def ripemd160(data: bytes) -> bytes:
 def sha256(data: bytes) -> bytes:
     """Calculate the SHA-256 hash of the data."""
     h = Hash(SHA256())
+    h.update(data)
+    return h.finalize()
+
+
+def sha1(data: bytes) -> bytes:
+    """Calculate the SHA-1 hash of the data."""
+    h = Hash(SHA1())  # noqa: S303
     h.update(data)
     return h.finalize()
 
