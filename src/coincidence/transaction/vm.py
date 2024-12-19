@@ -69,25 +69,21 @@ def encode_num(num: int | bool):
     """
     if num == 0:
         return b""
-    representation = bytearray()
-    abs_num = abs(num)
-    while abs_num:
-        representation.append(abs_num & 0xFF)
-        abs_num >>= 8
-    if num < 0:
-        if representation[-1] & 0x80:
-            representation.append(0x80)
-        else:
-            representation[-1] |= 0x80
-    return bytes(representation)
+    ret = bytearray()
+    ret += (abs_num := abs(num)).to_bytes((abs_num.bit_length() + 7) // 8, "little")
+    if ret[-1] & 0x80:
+        ret.append(0x00 if num > 0 else 0x80)
+    elif num < 0:
+        ret[-1] |= 0x80
+    return bytes(ret)
 
 
 def decode_num(data: bytes):
     """Decode a byte array as an integer."""
     if not data:
         return 0
-    if negative := data[-1] & 0x80:
-        data = data[:-1] + bytes([data[-1] & 0x7F])
+    negative = data[-1] & 0x80
+    data = data[:-1] + bytes([last] if (last := data[-1] & 0x7F) else [])
     return int.from_bytes(data, "little") * (-1 if negative else 1)
 
 
@@ -97,14 +93,13 @@ def register_op(*ops: TransactionOpCode):
         if any(
             arg not in OpCodeInstructArguments.__members__
             for arg in signature.parameters
-        ):
+        ):  # pragma: no cover
             raise ValueError(f"Invalid arguments: {signature}")
-        flags = sum(
-            (OpCodeInstructArguments[arg] for arg in signature.parameters),
-            OpCodeInstructArguments.stack,
-        )
+        flags = OpCodeInstructArguments.stack
+        for arg in signature.parameters:
+            flags |= OpCodeInstructArguments[arg]
         for op in ops:
-            if conflicted := _TRANSACTION_OP_TABLE.get(op):
+            if conflicted := _TRANSACTION_OP_TABLE.get(op):  # pragma: no cover
                 raise ValueError(f"Conflicting opcode: {op=} {conflicted=} {func=}")
             _TRANSACTION_OP_TABLE[op] = (func, flags)
         return func
@@ -157,28 +152,28 @@ def op_if(stack: Stack, cmds: Commands, current_op: TransactionOpCode):
     found = False
     num_endif_needed = 1
     while cmds:  # go through and re-make the items array based on the top stack element
-        item = cmds.popleft()
-        match item:
+        match item := cmds.popleft():
             case TransactionOpCode.OP_IF | TransactionOpCode.OP_NOTIF:
                 # nested if, we have to go another endif
                 num_endif_needed += 1
-                current_branch = branch_false_commands
+                current_branch.append(item)
             case TransactionOpCode.OP_ELSE if num_endif_needed == 1:
                 current_branch = branch_false_commands
             case TransactionOpCode.OP_ENDIF if num_endif_needed == 1:
-                if num_endif_needed == 1:
-                    found = True
-                    break
+                found = True
+                break
+            case TransactionOpCode.OP_ENDIF:
                 num_endif_needed -= 1
+                current_branch.append(item)
             case _:
                 current_branch.append(item)
     if not found:
-        raise ValueError("Unmatched OP_IF")
+        raise OpCodeRejectedError("Unmatched OP_IF")
     condition = decode_num(stack.pop())
     if (current_op is TransactionOpCode.OP_IF) != bool(condition):
-        cmds.extendleft(branch_false_commands)
+        cmds.extendleft(reversed(branch_false_commands))
     else:
-        cmds.extendleft(branch_true_commands)
+        cmds.extendleft(reversed(branch_true_commands))
 
 
 @register_op(TransactionOpCode.OP_VERIFY)
@@ -230,31 +225,32 @@ def op_dup_n(stack: Stack, current_op: TransactionOpCode):
     }[current_op]
     if len(stack) < dup_num:
         raise InsufficientStackError
-    stack.extend(stack[-i] for i in range(1, dup_num + 1))
+    stack.extend([stack[-i] for i in range(dup_num, 0, -1)])
 
 
-@register_op(TransactionOpCode.OP_OVER, TransactionOpCode.OP_2OVER)
-def op_over_n(stack: Stack, current_op: TransactionOpCode):
-    over_num = {
-        TransactionOpCode.OP_OVER: 2,
-        TransactionOpCode.OP_2OVER: 4,
-    }[current_op]
-    if len(stack) < over_num:
-        raise InsufficientStackError
-    stack.extend(stack[-i] for i in range(over_num - 2, over_num))
+@register_op(TransactionOpCode.OP_OVER)
+@assert_stack_size(2)
+def op_over(stack: Stack):
+    stack.append(stack[-2])
+
+
+@register_op(TransactionOpCode.OP_2OVER)
+@assert_stack_size(4)
+def op_2over(stack: Stack):
+    stack.extend([stack[-4], stack[-3]])
 
 
 @register_op(TransactionOpCode.OP_ROT)
 @assert_stack_size(3)
 def op_rot(stack: Stack):
-    elements = [stack.pop() for _ in range(3)]
+    elements = [stack.pop() for _ in range(3)][::-1]
     stack.extend(elements[1:] + elements[:1])
 
 
 @register_op(TransactionOpCode.OP_2ROT)
 @assert_stack_size(6)
 def op_2rot(stack: Stack):
-    elements = [stack.pop() for _ in range(6)]
+    elements = [stack.pop() for _ in range(6)][::-1]
     stack.extend(elements[2:] + elements[:2])
 
 
@@ -269,7 +265,7 @@ def op_swap(stack: Stack):
 @register_op(TransactionOpCode.OP_2SWAP)
 @assert_stack_size(4)
 def op_2swap(stack: Stack):
-    elements = [stack.pop() for _ in range(4)]
+    elements = [stack.pop() for _ in range(4)][::-1]
     stack.extend(elements[2:] + elements[:2])
 
 
@@ -285,7 +281,7 @@ def op_ifdup(stack: Stack):
 @assert_stack_size(2)
 def op_nip(stack: Stack):
     elements = [stack.pop(), stack.pop()]
-    stack.append(elements[0])
+    stack.append(elements[1])
 
 
 @register_op(TransactionOpCode.OP_PICK)
@@ -305,8 +301,8 @@ def op_roll(stack: Stack):
         raise InsufficientStackError
     if n == 0:
         return
-    elements = [stack.pop() for _ in range(n)]
-    stack.append(elements.pop(0))
+    elements = [stack.pop() for _ in range(n)][::-1]
+    stack.extend(elements[1:] + elements[:1])
 
 
 @register_op(TransactionOpCode.OP_TUCK)
@@ -320,6 +316,11 @@ def op_tuck(stack: Stack):
 @assert_stack_size(1)
 def op_size(stack: Stack):
     stack.append(encode_num(len(stack[-1])))
+
+
+@register_op(TransactionOpCode.OP_DEPTH)
+def op_depth(stack: Stack):
+    stack.append(encode_num(len(stack)))
 
 
 @register_op(TransactionOpCode.OP_EQUAL)
@@ -383,7 +384,7 @@ def op_arithmetic_unary(stack: Stack, current_op: TransactionOpCode):
 )
 @assert_stack_size(2)
 def op_arithmetic_binary(stack: Stack, current_op: TransactionOpCode):  # noqa: C901, PLR0912
-    a, b = map(decode_num, (stack.pop(), stack.pop()))
+    b, a = map(decode_num, (stack.pop(), stack.pop()))
     match current_op:
         case TransactionOpCode.OP_ADD:
             result = a + b
@@ -399,6 +400,7 @@ def op_arithmetic_binary(stack: Stack, current_op: TransactionOpCode):  # noqa: 
             result = int(a == b)
             stack.append(encode_num(result))
             op_verify(stack)
+            return
         case TransactionOpCode.OP_NUMNOTEQUAL:
             result = int(a != b)
         case TransactionOpCode.OP_LESSTHAN:
@@ -421,8 +423,8 @@ def op_arithmetic_binary(stack: Stack, current_op: TransactionOpCode):  # noqa: 
 @register_op(TransactionOpCode.OP_WITHIN)
 @assert_stack_size(3)
 def op_within(stack: Stack):
-    x, y, z = map(decode_num, (stack.pop(), stack.pop(), stack.pop()))
-    stack.append(encode_num(y <= x < z))
+    maximum, minimum, x = map(decode_num, (stack.pop(), stack.pop(), stack.pop()))
+    stack.append(encode_num(minimum <= x < maximum))
 
 
 @register_op(
@@ -454,11 +456,11 @@ def op_hash(stack: Stack, current_op: TransactionOpCode):
 @register_op(TransactionOpCode.OP_CHECKSIG)
 @assert_stack_size(2)
 def op_checksig(stack: Stack, z: bytes):
-    pubkey = stack.pop()
+    pk = stack.pop()
     # TODO: Deal with hashtype
     # https://en.bitcoin.it/wiki/OP_CHECKSIG
     sig = stack.pop()[:-1]
-    stack.append(encode_num(verify_signature(sig, pubkey, z)))
+    stack.append(encode_num(verify_signature(pk, sig, z)))
 
 
 @register_op(TransactionOpCode.OP_CHECKSIGVERIFY)
@@ -503,23 +505,48 @@ def op_checkmultisigverify(stack: Stack, z: bytes):
 
 
 def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = -1):
+    """Evaluate a transaction script by processing its commands sequentially.
+
+    This function implements the Bitcoin Script evaluation logic, processing opcodes
+    and managing the execution stack. It handles both data pushing operations and
+    opcode execution according to the Bitcoin protocol rules.
+
+    Args:
+        script (TransactionScript): The script to be evaluated containing commands.
+        z (bytes): Transaction signature hash that may be used in signature checks.
+        execution_limit (int): Maximum number of operations to execute. -1 for
+            unlimited. Default is -1.
+
+    Returns:
+        tuple[int, deque[bytes]]: A tuple containing:
+            - Number of operations executed (int)
+            - Final state of the execution stack (deque[bytes])
+
+    Raises:
+        OpCodeRejectedError: If an unknown opcode is encountered or execution limit is
+            reached.
+
+    Example:
+        >>> script = TransactionScript([OP_TRUE, OP_VERIFY])
+        >>> total_ops, result_stack = evaluate_script(script, b'')
+
+    """
     stack = deque[bytes]()
     commands = deque(script.commands)
     alternative_args: dict[OpCodeInstructArguments, Any] = {  # pyright:ignore[reportExplicitAny]
         OpCodeInstructArguments.alt_stack: deque[bytes](),
-        OpCodeInstructArguments.current_op: None,
-        OpCodeInstructArguments.cmds: commands,
         OpCodeInstructArguments.z: z,
     }
     total_executions = 0
     while commands:
         command = commands.popleft()
         alternative_args[OpCodeInstructArguments.current_op] = command
+        alternative_args[OpCodeInstructArguments.cmds] = commands
         if isinstance(command, bytes):
             stack.append(command)
             continue
         if (result := _TRANSACTION_OP_TABLE.get(command)) is None:
-            raise ValueError(f"Invalid opcode: {command}")
+            raise OpCodeRejectedError(f"Unknown opcode: {command}")
         callback, flags = result
         kwargs = {
             arg.name: alternative_args[arg]
@@ -529,4 +556,4 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
         callback(stack, **kwargs)
         if (total_executions := total_executions + 1) == execution_limit:
             raise OpCodeRejectedError("Execution limit reached")
-    return total_executions
+    return total_executions, stack
