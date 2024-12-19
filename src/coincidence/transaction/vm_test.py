@@ -316,3 +316,71 @@ def test_stack_ops(
         return
     _, stack = evaluate_script(script, b"")
     assert [*map(decode_num, stack)] == expected
+
+
+def test_op_equal():
+    # Test equal values
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            b"hello",
+            TransactionOpCode.OP_EQUAL,
+        )
+    )
+    _, stack = evaluate_script(script, b"")
+    assert decode_num(stack.pop()) == 1
+
+    # Test unequal values
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            b"world",
+            TransactionOpCode.OP_EQUAL,
+        )
+    )
+    _, stack = evaluate_script(script, b"")
+    assert decode_num(stack.pop()) == 0
+
+    # Test with insufficient stack
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            TransactionOpCode.OP_EQUAL,
+        )
+    )
+    with pytest.raises(InsufficientStackError):
+        _ = evaluate_script(script, b"")
+
+
+def test_op_equalverify():
+    # Test equal values
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            b"hello",
+            TransactionOpCode.OP_EQUALVERIFY,
+        )
+    )
+    _, stack = evaluate_script(script, b"")
+    assert len(stack) == 0
+
+    # Test unequal values
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            b"world",
+            TransactionOpCode.OP_EQUALVERIFY,
+        )
+    )
+    with pytest.raises(OpCodeRejectedError, match="Verify"):
+        _ = evaluate_script(script, b"")
+
+    # Test with insufficient stack
+    script = TransactionScript(
+        commands=(
+            b"hello",
+            TransactionOpCode.OP_EQUALVERIFY,
+        )
+    )
+    with pytest.raises(InsufficientStackError):
+        _ = evaluate_script(script, b"")
