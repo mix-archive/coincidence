@@ -76,7 +76,7 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
         if variant == "p2pk":
             pk = self.public_bytes(
                 encoding=serialization.Encoding.X962,
-                format=serialization.PublicFormat.CompressedPoint,
+                format=serialization.PublicFormat.UncompressedPoint,
             )
             return base58.b58encode_check(pk).decode("ascii")
         if variant in ("p2pkh", "p2sh"):

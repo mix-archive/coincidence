@@ -83,6 +83,9 @@ def test_address_generation():
     assert public_numbers.x.to_bytes(32, "big") in base58.b58decode(
         public_key.address(variant="p2pk")
     )
+    assert public_numbers.y.to_bytes(32, "big") in base58.b58decode(
+        public_key.address(variant="p2pk")
+    )
 
     # Test Bech32 addresses
     testnet_bech32 = public_key.address(network="test", variant="bech32")
