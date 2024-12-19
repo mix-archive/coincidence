@@ -32,16 +32,41 @@ def test_varint_serialization(value: int, expected: bytes):
     assert deserialized == value
 
 
+@pytest.mark.parametrize(
+    ("count", "expected_prefix"),
+    [
+        (1, b"\x01"),
+        (75, b"\x4b"),
+        (76, b"\x4c\x4c"),
+        (255, b"\x4c\xff"),
+        (256, b"\x4d\x00\x01"),
+        (65535, b"\x4d\xff\xff"),
+        (65536, b"\x4e\x00\x00\x01\x00"),
+    ],
+)
+def test_serialize_command_bytes(count: int, expected_prefix: bytes):
+    data = b"a" * count
+    serialized = serialize_command_bytes(data)
+    assert serialized.startswith(expected_prefix)
+    assert serialized[len(expected_prefix) :] == data
+
+    deserialized = TransactionScript.deserialize(
+        BytesIO(varint(len(serialized)).serialize() + serialized)
+    )
+    assert deserialized == TransactionScript(commands=(data,))
+
+
+def test_invalid_opcode_deserialize():
+    # Create an invalid script with an unknown opcode
+    invalid_script = varint(1).serialize() + bytes([0xFF])  # 0xFF is not a valid opcode
+    with pytest.raises(ValueError, match="Invalid opcode: 255"):
+        _ = TransactionScript.deserialize(BytesIO(invalid_script))
+
+
 def test_transaction_opcode_serialization():
     opcode = TransactionOpCode.OP_1
     serialized = opcode.serialize()
     assert serialized == b"\x51"
-
-
-def test_serialize_command_bytes():
-    data = b"hello"
-    serialized = serialize_command_bytes(data)
-    assert serialized == b"\x05hello"
 
 
 def test_transaction_script_serialization():
@@ -96,6 +121,21 @@ def test_transaction_serialization():
     serialized = transaction.serialize()
     deserialized = Transaction.deserialize(BytesIO(serialized))
     assert deserialized == transaction
+
+
+def test_transaction_script_concatenation():
+    script1 = TransactionScript(commands=(TransactionOpCode.OP_1, b"hello"))
+    script2 = TransactionScript(commands=(TransactionOpCode.OP_2, b"world"))
+    combined = script1 + script2
+    assert combined.commands == (
+        TransactionOpCode.OP_1,
+        b"hello",
+        TransactionOpCode.OP_2,
+        b"world",
+    )
+    assert isinstance(combined, TransactionScript)
+    assert id(combined) != id(script1)
+    assert id(combined) != id(script2)
 
 
 def test_transaction_realworld():
