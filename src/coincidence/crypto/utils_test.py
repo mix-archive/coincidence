@@ -1,6 +1,19 @@
 import pytest
 
-from coincidence.crypto.utils import ripemd160, sha1, sha256, verify_signature
+from coincidence.crypto.utils import (
+    RIPEMD160,
+    ripemd160,
+    sha1,
+    sha256,
+    verify_signature,
+)
+
+
+def test_ripemd160_algorithm():
+    ripemd = RIPEMD160()
+    assert ripemd.name == "ripemd160"
+    assert ripemd.digest_size == 20
+    assert ripemd.block_size == 64
 
 
 @pytest.mark.parametrize(
