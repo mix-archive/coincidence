@@ -71,8 +71,14 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
     def address(
         self,
         network: Literal["test", "main"] = "test",
-        variant: Literal["p2pkh", "p2sh", "bech32"] = "p2pkh",
+        variant: Literal["p2pk", "p2pkh", "p2sh", "bech32"] = "p2pkh",
     ) -> str:
+        if variant == "p2pk":
+            pk = self.public_bytes(
+                encoding=serialization.Encoding.X962,
+                format=serialization.PublicFormat.CompressedPoint,
+            )
+            return base58.b58encode_check(pk).decode("ascii")
         if variant in ("p2pkh", "p2sh"):
             version = {
                 "main": {"p2pkh": b"\x00", "p2sh": b"\x05"},
@@ -88,7 +94,7 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
             witver=0,
             witprog=self.hash,
         )
-        if not isinstance(result, str):
+        if not isinstance(result, str):  # pragma: no cover
             raise ValueError("Failed to encode address")  # noqa: TRY004
         return result
 
@@ -109,7 +115,14 @@ class BitcoinPrivateKey(EllipticCurvePrivateKey):
         algorithm: ECDH,
         peer_public_key: EllipticCurvePublicKey,
     ) -> bytes:
-        return self.base.exchange(algorithm, peer_public_key)
+        pk = EllipticCurvePublicKey.from_encoded_point(
+            SECP256K1(),
+            peer_public_key.public_bytes(
+                encoding=serialization.Encoding.X962,
+                format=serialization.PublicFormat.UncompressedPoint,
+            ),
+        )
+        return self.base.exchange(algorithm, pk)
 
     @override
     def public_key(self) -> BitcoinPublicKey:
@@ -145,3 +158,12 @@ class BitcoinPrivateKey(EllipticCurvePrivateKey):
         encryption_algorithm: serialization.KeySerializationEncryption,
     ) -> bytes:
         return self.base.private_bytes(encoding, format, encryption_algorithm)
+
+    def wif(self, network: Literal["test", "main"] = "test") -> str:
+        version = {
+            "main": b"\x80",
+            "test": b"\xef",
+        }[network]
+        return base58.b58encode_check(
+            version + self.private_numbers().private_value.to_bytes(32, "big")
+        ).decode()
