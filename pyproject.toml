@@ -52,7 +52,7 @@ ignore = [
 distribution = true
 
 [tool.pdm.scripts]
-test = "pytest --cov --cov-report=term-missing ."
+test = "pytest --cov --cov-report=term-missing --cov-report=xml ."
 format = "ruff format"
 lint = "ruff check"
 
