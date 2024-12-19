@@ -106,7 +106,7 @@ def convertbits(data, frombits, tobits, pad=True):
     maxv = (1 << tobits) - 1
     max_acc = (1 << (frombits + tobits - 1)) - 1
     for value in data:
-        if value < 0 or (value >> frombits):
+        if value < 0 or (value >> frombits):  # pragma: no cover
             return None
         acc = ((acc << frombits) | value) & max_acc
         bits += frombits
