@@ -1,7 +1,10 @@
+import dataclasses
 from dataclasses import dataclass
 from enum import IntEnum
 from io import BytesIO
 from typing import IO, Self
+
+from coincidence.crypto import sha256
 
 
 class varint(int):  # noqa:N801
@@ -191,6 +194,18 @@ class TransactionOpCode(IntEnum):
         return bytes([self])
 
 
+class SignatureHashTypes(IntEnum):
+    """Signature hash types for transaction signature verification.
+
+    Ref: https://en.bitcoin.it/wiki/OP_CHECKSIG
+    """
+
+    ALL = 0x01
+    NONE = 0x02
+    SINGLE = 0x03
+    ANYONECANPAY = 0x80
+
+
 def serialize_command_bytes(data: bytes):
     ret, length = bytearray(), len(data)
     if length < TransactionOpCode.OP_PUSHDATA1:
@@ -215,7 +230,7 @@ class TransactionScript:
 
     """
 
-    commands: tuple[TransactionOpCode | bytes, ...]
+    commands: tuple[TransactionOpCode | bytes, ...] = ()
 
     def serialize(self):
         """Serialize the transaction script."""
@@ -284,6 +299,16 @@ class TransactionInput:
         sequence = int.from_bytes(data.read(4), "little")
         return cls(previous_transaction, previous_index, script_signature, sequence)
 
+    @property
+    def value(self) -> int:
+        """Query the amount of the transaction input from UTxO.
+
+        Returns:
+            int: The amount of the transaction input in satoshis.
+
+        """
+        raise NotImplementedError
+
 
 @dataclass(frozen=True)
 class TransactionOutput:
@@ -332,3 +357,43 @@ class Transaction:
         )
         locktime = int.from_bytes(data.read(4), "little")
         return cls(version, inputs, outputs, locktime)
+
+    @property
+    def fee(self) -> int:
+        """Calculate the transaction fee.
+
+        Returns:
+            int: The transaction fee in satoshis.
+
+        """
+        raise NotImplementedError
+
+    def signature_hash(
+        self,
+        input_index: int,
+        prev_script_pubkey: TransactionScript,
+        hash_type: SignatureHashTypes = SignatureHashTypes.ALL,
+    ) -> bytes:
+        """Calculate the signature hash for the input.
+
+        Args:
+            input_index (int): Index of the input to sign.
+            prev_script_pubkey (TransactionScript): Previous output locking script.
+            hash_type (SignatureHashTypes): Signature hash type.
+
+        Returns:
+            bytes: The signature hash after double SHA256 hashing.
+
+        """
+        inputs = tuple(
+            dataclasses.replace(
+                tx_in,
+                script_signature=(
+                    prev_script_pubkey if i == input_index else TransactionScript()
+                ),
+            )
+            for i, tx_in in enumerate(self.inputs)
+        )
+        hash_target = dataclasses.replace(self, inputs=inputs).serialize()
+        hash_target += hash_type.to_bytes(4, "little")
+        return sha256(sha256(hash_target))

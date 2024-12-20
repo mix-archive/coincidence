@@ -2,12 +2,12 @@ import functools
 import inspect
 from collections import deque
 from collections.abc import Callable
-from enum import IntEnum, IntFlag, auto
+from enum import IntFlag, auto
 from typing import Any, Concatenate
 
 from coincidence.crypto import ripemd160, sha1, sha256, verify_signature
 
-from .types import TransactionOpCode, TransactionScript
+from .types import SignatureHashTypes, TransactionOpCode, TransactionScript
 
 type Stack = deque[bytes]
 type Commands = deque[TransactionOpCode | bytes]
@@ -20,18 +20,6 @@ class OpCodeInstructArguments(IntFlag):
     current_op = auto()
     cmds = auto()
     z = auto()
-
-
-class SignatureHashTypes(IntEnum):
-    """Signature hash types for transaction signature verification.
-
-    Ref: https://en.bitcoin.it/wiki/OP_CHECKSIG
-    """
-
-    ALL = 0x01
-    NONE = 0x02
-    SINGLE = 0x03
-    ANYONECANPAY = 0x80
 
 
 _TRANSACTION_OP_TABLE: dict[
