@@ -43,20 +43,21 @@ def test_encode_num(num: int, expected: bytes):
 
 def test_op_if():
     # Test basic OP_IF with true condition
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(1),  # True condition
             TransactionOpCode.OP_IF,
             encode_num(42),
             TransactionOpCode.OP_ENDIF,
         )
     )
+
     _, stack = evaluate_script(script, b"")
     assert decode_num(stack.pop()) == 42
 
     # Test basic OP_IF with false condition
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(0),  # False condition
             TransactionOpCode.OP_IF,
             encode_num(42),
@@ -67,8 +68,8 @@ def test_op_if():
     assert len(stack) == 0
 
     # Test OP_IF with ELSE
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(0),  # False condition
             TransactionOpCode.OP_IF,
             encode_num(42),
@@ -81,8 +82,8 @@ def test_op_if():
     assert decode_num(stack.pop()) == 43
 
     # Test OP_NOTIF
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(0),  # False condition
             TransactionOpCode.OP_NOTIF,
             encode_num(42),
@@ -93,8 +94,8 @@ def test_op_if():
     assert decode_num(stack.pop()) == 42
 
     # Test nested IF statements
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(1),  # True condition for outer IF
             TransactionOpCode.OP_IF,
             encode_num(1),  # True condition for inner IF
@@ -108,36 +109,30 @@ def test_op_if():
     assert decode_num(stack.pop()) == 42
 
     # Test unmatched IF
-    script = TransactionScript(
-        commands=(
-            encode_num(1),
-            TransactionOpCode.OP_IF,
-            encode_num(42),
-        )
+    script = TransactionScript.from_commands(
+        (encode_num(1), TransactionOpCode.OP_IF, encode_num(42))
     )
     with pytest.raises(ValueError, match="Unmatched OP_IF"):
         _ = evaluate_script(script, b"")
 
     # Test insufficient stack
-    script = TransactionScript(
-        commands=(
-            TransactionOpCode.OP_IF,
-            encode_num(42),
-            TransactionOpCode.OP_ENDIF,
-        )
+    script = TransactionScript.from_commands(
+        (TransactionOpCode.OP_IF, encode_num(42), TransactionOpCode.OP_ENDIF)
     )
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")
 
 
 def test_op_hash160():
-    empty_script = TransactionScript(
-        commands=(TransactionOpCode.OP_NOP, TransactionOpCode.OP_HASH160)
+    empty_script = TransactionScript.from_commands(
+        (TransactionOpCode.OP_NOP, TransactionOpCode.OP_HASH160)
     )
     with pytest.raises(InsufficientStackError, match="op_hash"):
         exec_count, stack = evaluate_script(empty_script, b"")
 
-    script = TransactionScript(commands=(b"hello world", TransactionOpCode.OP_HASH160))
+    script = TransactionScript.from_commands(
+        (b"hello world", TransactionOpCode.OP_HASH160)
+    )
     exec_count, stack = evaluate_script(script, b"")
     assert exec_count == 1
     assert [*stack] == [bytes.fromhex("d7d5ee7824ff93f94c3055af9382c86c68b5ca92")]
@@ -153,7 +148,9 @@ def test_op_checksig():
     sig = bytes.fromhex(
         "3045022000eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c022100c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab601"
     )
-    script = TransactionScript(commands=(sig, sec, TransactionOpCode.OP_CHECKSIGVERIFY))
+    script = TransactionScript.from_commands(
+        (sig, sec, TransactionOpCode.OP_CHECKSIGVERIFY)
+    )
     exec_count, stack = evaluate_script(script, z)
     assert exec_count == 1
     assert len(stack) == 0
@@ -166,8 +163,8 @@ def test_op_checksig():
     mutated_sig = sig[:-1] + bytes([sig[-1] + 1])
     with pytest.raises(OpCodeRejectedError, match="hash type"):
         exec_count, stack = evaluate_script(
-            TransactionScript(
-                commands=(mutated_sig, sec, TransactionOpCode.OP_CHECKSIG)
+            TransactionScript.from_commands(
+                (mutated_sig, sec, TransactionOpCode.OP_CHECKSIG)
             ),
             z,
         )
@@ -225,7 +222,7 @@ def test_arithmetic(op: TransactionOpCode, args: list[int], expected: int | bool
         ]
     else:
         commands = [*map(encode_num, args)]
-    script = TransactionScript(commands=(*commands, op))
+    script = TransactionScript.from_commands((*commands, op))
     if expected is False:
         with pytest.raises(OpCodeRejectedError):
             _ = evaluate_script(script, b"")
@@ -235,22 +232,24 @@ def test_arithmetic(op: TransactionOpCode, args: list[int], expected: int | bool
 
 
 def test_op_return():
-    script = TransactionScript(commands=(b"hello world", TransactionOpCode.OP_RETURN))
+    script = TransactionScript.from_commands(
+        (b"hello world", TransactionOpCode.OP_RETURN)
+    )
     with pytest.raises(OpCodeRejectedError, match="OP_RETURN"):
         _ = evaluate_script(script, b"")
 
 
 def test_op_altstack():
     # Test OP_TOALTSTACK
-    script = TransactionScript(
-        commands=(encode_num(42), TransactionOpCode.OP_TOALTSTACK)
+    script = TransactionScript.from_commands(
+        (encode_num(42), TransactionOpCode.OP_TOALTSTACK)
     )
     _, stack = evaluate_script(script, b"")
     assert len(stack) == 0  # Main stack should be empty
 
     # Test OP_FROMALTSTACK
-    script = TransactionScript(
-        commands=(
+    script = TransactionScript.from_commands(
+        (
             encode_num(42),
             TransactionOpCode.OP_TOALTSTACK,
             TransactionOpCode.OP_FROMALTSTACK,
@@ -260,12 +259,12 @@ def test_op_altstack():
     assert decode_num(stack.pop()) == 42
 
     # Test OP_FROMALTSTACK with empty alt stack
-    script = TransactionScript(commands=(TransactionOpCode.OP_FROMALTSTACK,))
+    script = TransactionScript.from_commands((TransactionOpCode.OP_FROMALTSTACK,))
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")
 
     # Test OP_TOALTSTACK with insufficient stack
-    script = TransactionScript(commands=(TransactionOpCode.OP_TOALTSTACK,))
+    script = TransactionScript.from_commands((TransactionOpCode.OP_TOALTSTACK,))
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")
 
@@ -318,7 +317,7 @@ def test_op_altstack():
 def test_stack_ops(
     op: TransactionOpCode, input_stack: list[int], expected: list[int] | None
 ):
-    script = TransactionScript(commands=(*map(encode_num, input_stack), op))
+    script = TransactionScript.from_commands((*map(encode_num, input_stack), op))
     if expected is None:
         with pytest.raises(InsufficientStackError):
             _ = evaluate_script(script, b"")
@@ -329,67 +328,43 @@ def test_stack_ops(
 
 def test_op_equal():
     # Test equal values
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            b"hello",
-            TransactionOpCode.OP_EQUAL,
-        )
+    script = TransactionScript.from_commands(
+        (b"hello", b"hello", TransactionOpCode.OP_EQUAL)
     )
     _, stack = evaluate_script(script, b"")
     assert decode_num(stack.pop()) == 1
 
     # Test unequal values
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            b"world",
-            TransactionOpCode.OP_EQUAL,
-        )
+    script = TransactionScript.from_commands(
+        (b"hello", b"world", TransactionOpCode.OP_EQUAL)
     )
     _, stack = evaluate_script(script, b"")
     assert decode_num(stack.pop()) == 0
 
     # Test with insufficient stack
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            TransactionOpCode.OP_EQUAL,
-        )
-    )
+    script = TransactionScript.from_commands((b"hello", TransactionOpCode.OP_EQUAL))
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")
 
 
 def test_op_equalverify():
     # Test equal values
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            b"hello",
-            TransactionOpCode.OP_EQUALVERIFY,
-        )
+    script = TransactionScript.from_commands(
+        (b"hello", b"hello", TransactionOpCode.OP_EQUALVERIFY)
     )
     _, stack = evaluate_script(script, b"")
     assert len(stack) == 0
 
     # Test unequal values
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            b"world",
-            TransactionOpCode.OP_EQUALVERIFY,
-        )
+    script = TransactionScript.from_commands(
+        (b"hello", b"world", TransactionOpCode.OP_EQUALVERIFY)
     )
     with pytest.raises(OpCodeRejectedError, match="Verify"):
         _ = evaluate_script(script, b"")
 
     # Test with insufficient stack
-    script = TransactionScript(
-        commands=(
-            b"hello",
-            TransactionOpCode.OP_EQUALVERIFY,
-        )
+    script = TransactionScript.from_commands(
+        (b"hello", TransactionOpCode.OP_EQUALVERIFY)
     )
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")

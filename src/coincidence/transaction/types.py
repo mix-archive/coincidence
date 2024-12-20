@@ -1,10 +1,14 @@
 import dataclasses
+from collections import deque
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import IntEnum
 from io import BytesIO
-from typing import IO, Self
+from typing import IO, Self, override
 
 from coincidence.crypto import sha256
+
+type Commands = deque[TransactionOpCode | bytes]
 
 
 class varint(int):  # noqa:N801
@@ -230,26 +234,14 @@ class TransactionScript:
 
     """
 
-    commands: tuple[TransactionOpCode | bytes, ...] = ()
+    bytecode: bytes = b""
 
-    def serialize(self):
-        """Serialize the transaction script."""
-        ret = bytearray()
-        for command in self.commands:
-            match command:
-                case TransactionOpCode(code):
-                    ret += code.serialize()
-                case bytes(data):  # pragma: no branch
-                    ret += serialize_command_bytes(data)
-        return varint(len(ret)).serialize() + bytes(ret)
-
-    @classmethod
-    def deserialize(cls, data: IO[bytes]):
-        """Deserialize a sequence of bytes into a transaction script."""
-        script_length = varint.deserialize(data)
-        reader = BytesIO(data.read(script_length))
-        commands: list[TransactionOpCode | bytes] = []
-        while reader.tell() < script_length:
+    @property
+    def commands(self) -> Commands:
+        """Parse the script into a sequence of commands."""
+        commands: Commands = deque()
+        reader, total_length = BytesIO(self.bytecode), len(self.bytecode)
+        while reader.tell() < total_length:
             opcode, *_ = reader.read(1)
             match opcode:
                 case TransactionOpCode.OP_PUSHDATA1:
@@ -267,10 +259,43 @@ class TransactionScript:
                     commands.append(TransactionOpCode(code))
                 case _:
                     raise ValueError(f"Invalid opcode: {opcode}")
-        return cls(tuple(commands))
+        return commands
+
+    @override
+    def __repr__(self):
+        try:
+            commands = repr([*self.commands])
+        except ValueError:
+            commands = "..."
+        bytecode = repr(self.bytecode)
+        if len(bytecode) > 32:  # noqa: PLR2004
+            bytecode = bytecode[:16] + " [...] " + bytecode[-16:]
+        return f"{self.__class__.__name__}({commands=:s}, {bytecode=:s})"
+
+    @classmethod
+    def from_commands(cls, commands: Iterable[TransactionOpCode | bytes]):
+        """Create a transaction script from a sequence of commands."""
+        bytecode = bytearray()
+        for command in commands:
+            match command:
+                case TransactionOpCode(code):
+                    bytecode += code.serialize()
+                case bytes(data):  # pragma: no branch
+                    bytecode += serialize_command_bytes(data)
+        return cls(bytes(bytecode))
+
+    def serialize(self):
+        """Serialize the transaction script."""
+        return varint(len(self.bytecode)).serialize() + self.bytecode
+
+    @classmethod
+    def deserialize(cls, data: IO[bytes]):
+        """Deserialize a sequence of bytes into a transaction script."""
+        script_length = varint.deserialize(data)
+        return cls(data.read(script_length))
 
     def __add__(self, other: Self) -> Self:
-        return self.__class__(self.commands + other.commands)
+        return self.__class__(self.bytecode + other.bytecode)
 
 
 @dataclass(frozen=True)

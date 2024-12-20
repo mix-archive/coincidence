@@ -7,10 +7,9 @@ from typing import Any, Concatenate
 
 from coincidence.crypto import ripemd160, sha1, sha256, verify_signature
 
-from .types import SignatureHashTypes, TransactionOpCode, TransactionScript
+from .types import Commands, SignatureHashTypes, TransactionOpCode, TransactionScript
 
 type Stack = deque[bytes]
-type Commands = deque[TransactionOpCode | bytes]
 type OpCodeCallback = Callable[Concatenate[Stack, ...], None]
 
 
@@ -531,8 +530,9 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
 
     """
     stack = deque[bytes]()
-    commands = deque(script.commands)
+    commands = script.commands.copy()
     alternative_args: dict[OpCodeInstructArguments, Any] = {  # pyright:ignore[reportExplicitAny]
+        OpCodeInstructArguments.cmds: commands,
         OpCodeInstructArguments.alt_stack: deque[bytes](),
         OpCodeInstructArguments.z: z,
     }
@@ -540,7 +540,6 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
     while commands:
         command = commands.popleft()
         alternative_args[OpCodeInstructArguments.current_op] = command
-        alternative_args[OpCodeInstructArguments.cmds] = commands
         if isinstance(command, bytes):
             stack.append(command)
             continue
