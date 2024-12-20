@@ -163,6 +163,15 @@ def test_op_checksig():
     with pytest.raises(OpCodeRejectedError, match="Verify"):
         exec_count, stack = evaluate_script(script, mutated_z)
 
+    mutated_sig = sig[:-1] + bytes([sig[-1] + 1])
+    with pytest.raises(OpCodeRejectedError, match="hash type"):
+        exec_count, stack = evaluate_script(
+            TransactionScript(
+                commands=(mutated_sig, sec, TransactionOpCode.OP_CHECKSIG)
+            ),
+            z,
+        )
+
 
 @pytest.mark.parametrize(
     ("op", "args", "expected"),
