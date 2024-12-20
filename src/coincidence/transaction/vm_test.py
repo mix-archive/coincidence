@@ -41,6 +41,31 @@ def test_encode_num(num: int, expected: bytes):
     assert decode_num(expected) == num
 
 
+def test_op_nop():
+    # Test NOP with empty stack
+    script = TransactionScript.from_commands((TransactionOpCode.OP_NOP,))
+    _, stack = evaluate_script(script, b"")
+    assert len(stack) == 0
+
+    # Test NOP with non-empty stack
+    script = TransactionScript.from_commands((encode_num(42), TransactionOpCode.OP_NOP))
+    _, stack = evaluate_script(script, b"")
+    assert len(stack) == 1
+    assert decode_num(stack.pop()) == 42
+
+    # Test multiple NOPs
+    script = TransactionScript.from_commands(
+        (
+            encode_num(42),
+            TransactionOpCode.OP_NOP1,
+            TransactionOpCode.OP_NOP4,
+        )
+    )
+    count, stack = evaluate_script(script, b"")
+    assert count == 2
+    assert [*stack] == [encode_num(42)]
+
+
 def test_op_if():
     # Test basic OP_IF with true condition
     script = TransactionScript.from_commands(
@@ -121,53 +146,6 @@ def test_op_if():
     )
     with pytest.raises(InsufficientStackError):
         _ = evaluate_script(script, b"")
-
-
-def test_op_hash160():
-    empty_script = TransactionScript.from_commands(
-        (TransactionOpCode.OP_NOP, TransactionOpCode.OP_HASH160)
-    )
-    with pytest.raises(InsufficientStackError, match="op_hash"):
-        exec_count, stack = evaluate_script(empty_script, b"")
-
-    script = TransactionScript.from_commands(
-        (b"hello world", TransactionOpCode.OP_HASH160)
-    )
-    exec_count, stack = evaluate_script(script, b"")
-    assert exec_count == 1
-    assert [*stack] == [bytes.fromhex("d7d5ee7824ff93f94c3055af9382c86c68b5ca92")]
-
-
-def test_op_checksig():
-    z = bytes.fromhex(
-        "7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d"
-    )
-    sec = bytes.fromhex(
-        "04887387e452b8eacc4acfde10d9aaf7f6d9a0f975aabb10d006e4da568744d06c61de6d95231cd89026e286df3b6ae4a894a3378e393e93a0f45b666329a0ae34"
-    )
-    sig = bytes.fromhex(
-        "3045022000eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c022100c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab601"
-    )
-    script = TransactionScript.from_commands(
-        (sig, sec, TransactionOpCode.OP_CHECKSIGVERIFY)
-    )
-    exec_count, stack = evaluate_script(script, z)
-    assert exec_count == 1
-    assert len(stack) == 0
-
-    mutated_z = z[:-1] + bytes([z[-1] + 1])
-
-    with pytest.raises(OpCodeRejectedError, match="Verify"):
-        exec_count, stack = evaluate_script(script, mutated_z)
-
-    mutated_sig = sig[:-1] + bytes([sig[-1] + 1])
-    with pytest.raises(OpCodeRejectedError, match="hash type"):
-        exec_count, stack = evaluate_script(
-            TransactionScript.from_commands(
-                (mutated_sig, sec, TransactionOpCode.OP_CHECKSIG)
-            ),
-            z,
-        )
 
 
 @pytest.mark.parametrize(
@@ -326,45 +304,212 @@ def test_stack_ops(
     assert [*map(decode_num, stack)] == expected
 
 
-def test_op_equal():
-    # Test equal values
+@pytest.mark.parametrize(
+    ("op", "input_data", "expected_hex"),
+    [
+        (
+            TransactionOpCode.OP_RIPEMD160,
+            b"hello world",
+            "98c615784ccb5fe5936fbc0cbe9dfdb408d92f0f",
+        ),
+        (
+            TransactionOpCode.OP_SHA1,
+            b"hello world",
+            "2aae6c35c94fcfb415dbe95f408b9ce91ee846ed",
+        ),
+        (
+            TransactionOpCode.OP_SHA256,
+            b"hello world",
+            "b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9",
+        ),
+        (
+            TransactionOpCode.OP_HASH160,
+            b"hello world",
+            "d7d5ee7824ff93f94c3055af9382c86c68b5ca92",
+        ),
+        (
+            TransactionOpCode.OP_HASH256,
+            b"hello world",
+            "bc62d4b80d9e36da29c16c5d4d9f11731f36052c72401a76c23c0fb5a9b74423",
+        ),
+    ],
+    ids=lambda x: x.name if isinstance(x, TransactionOpCode) else str(x),  # pyright:ignore[reportAny]
+)
+def test_op_hash_operations(
+    op: TransactionOpCode, input_data: bytes, expected_hex: str
+):
+    # Test successful hash operation
     script = TransactionScript.from_commands(
-        (b"hello", b"hello", TransactionOpCode.OP_EQUAL)
-    )
-    _, stack = evaluate_script(script, b"")
-    assert decode_num(stack.pop()) == 1
-
-    # Test unequal values
-    script = TransactionScript.from_commands(
-        (b"hello", b"world", TransactionOpCode.OP_EQUAL)
-    )
-    _, stack = evaluate_script(script, b"")
-    assert decode_num(stack.pop()) == 0
-
-    # Test with insufficient stack
-    script = TransactionScript.from_commands((b"hello", TransactionOpCode.OP_EQUAL))
-    with pytest.raises(InsufficientStackError):
-        _ = evaluate_script(script, b"")
-
-
-def test_op_equalverify():
-    # Test equal values
-    script = TransactionScript.from_commands(
-        (b"hello", b"hello", TransactionOpCode.OP_EQUALVERIFY)
+        (bytes.fromhex(expected_hex), input_data, op, TransactionOpCode.OP_EQUALVERIFY)
     )
     _, stack = evaluate_script(script, b"")
     assert len(stack) == 0
 
-    # Test unequal values
+    # Test mutated hash operation
+    mutated_data = input_data[:-1] + bytes([input_data[-1] ^ 0x01])
     script = TransactionScript.from_commands(
-        (b"hello", b"world", TransactionOpCode.OP_EQUALVERIFY)
+        (
+            bytes.fromhex(expected_hex),
+            mutated_data,
+            op,
+            TransactionOpCode.OP_EQUALVERIFY,
+        )
     )
     with pytest.raises(OpCodeRejectedError, match="Verify"):
         _ = evaluate_script(script, b"")
 
-    # Test with insufficient stack
+
+def test_op_checksig():
+    z = bytes.fromhex(
+        "7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d"
+    )
+    sec = bytes.fromhex(
+        "04887387e452b8eacc4acfde10d9aaf7f6d9a0f975aabb10d006e4da568744d06c61de6d95231cd89026e286df3b6ae4a894a3378e393e93a0f45b666329a0ae34"
+    )
+    sig = bytes.fromhex(
+        "3045022000eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c022100c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab601"
+    )
     script = TransactionScript.from_commands(
-        (b"hello", TransactionOpCode.OP_EQUALVERIFY)
+        (sig, sec, TransactionOpCode.OP_CHECKSIGVERIFY)
+    )
+    exec_count, stack = evaluate_script(script, z)
+    assert exec_count == 1
+    assert len(stack) == 0
+
+    mutated_z = z[:-1] + bytes([z[-1] + 1])
+
+    with pytest.raises(OpCodeRejectedError, match="Verify"):
+        exec_count, stack = evaluate_script(script, mutated_z)
+
+    mutated_sig = sig[:-1] + bytes([sig[-1] ^ 0x01])
+    with pytest.raises(OpCodeRejectedError, match="hash type"):
+        exec_count, stack = evaluate_script(
+            TransactionScript.from_commands(
+                (mutated_sig, sec, TransactionOpCode.OP_CHECKSIG)
+            ),
+            z,
+        )
+
+
+def test_op_checkmultisig():
+    z = bytes.fromhex(
+        "7c076ff316692a3d7eb3c3bb0f8b1488cf72e1afcd929e29307032997a838a3d"
+    )
+    sec = bytes.fromhex(
+        "04887387e452b8eacc4acfde10d9aaf7f6d9a0f975aabb10d006e4da568744d06c61de6d95231cd89026e286df3b6ae4a894a3378e393e93a0f45b666329a0ae34"
+    )
+    sig = bytes.fromhex(
+        "3045022000eff69ef2b1bd93a66ed5219add4fb51e11a840f404876325a1e8ffe0529a2c022100c7207fee197d27c618aea621406f6bf5ef6fca38681d82b2f06fddbdce6feab601"
+    )
+
+    # Test basic 1-of-1 multisig
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",  # Extra value due to original Bitcoin bug
+            sig,
+            encode_num(1),  # Number of signatures (m)
+            sec,
+            encode_num(1),  # Number of public keys (n)
+            TransactionOpCode.OP_CHECKMULTISIG,
+        )
+    )
+    _, stack = evaluate_script(script, z)
+    assert decode_num(stack.pop()) == 1
+
+    # Test with invalid signature hash type
+    invalid_sig = sig[:-1] + bytes(
+        [0x02]
+    )  # Change hash type from ALL to something else
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",
+            invalid_sig,
+            encode_num(1),
+            sec,
+            encode_num(1),
+            TransactionOpCode.OP_CHECKMULTISIG,
+        )
+    )
+    with pytest.raises(OpCodeRejectedError, match="Invalid signature hash type"):
+        _ = evaluate_script(script, z)
+
+    # Test with insufficient stack for n public keys
+    script = TransactionScript.from_commands(
+        (encode_num(2), TransactionOpCode.OP_CHECKMULTISIG)
     )
     with pytest.raises(InsufficientStackError):
+        _ = evaluate_script(script, z)
+
+    # Test with insufficient stack for m signatures
+    script = TransactionScript.from_commands(
+        (sec, encode_num(1), sig, encode_num(2), TransactionOpCode.OP_CHECKMULTISIG)
+    )
+    with pytest.raises(InsufficientStackError):
+        _ = evaluate_script(script, z)
+
+    # Test with no public keys (should fail)
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",
+            sig,
+            encode_num(1),
+            encode_num(0),
+            TransactionOpCode.OP_CHECKMULTISIG,
+        )
+    )
+    with pytest.raises(OpCodeRejectedError, match="Invalid public keys or signatures"):
+        _ = evaluate_script(script, z)
+
+    # Test with no signatures (should fail)
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",
+            encode_num(0),
+            sec,
+            encode_num(1),
+            TransactionOpCode.OP_CHECKMULTISIG,
+        )
+    )
+    with pytest.raises(OpCodeRejectedError, match="Invalid public keys or signatures"):
+        _ = evaluate_script(script, z)
+
+    # Test OP_CHECKMULTISIGVERIFY success
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",
+            sig,
+            encode_num(1),
+            sec,
+            encode_num(1),
+            TransactionOpCode.OP_CHECKMULTISIGVERIFY,
+        )
+    )
+    _, stack = evaluate_script(script, z)
+    assert len(stack) == 0
+
+    # Test OP_CHECKMULTISIGVERIFY failure
+    mutated_z = z[:-1] + bytes([z[-1] + 1])
+    script = TransactionScript.from_commands(
+        (
+            b"\x00",
+            sig,
+            encode_num(1),
+            sec,
+            encode_num(1),
+            TransactionOpCode.OP_CHECKMULTISIGVERIFY,
+        )
+    )
+    with pytest.raises(OpCodeRejectedError, match="Verify"):
+        _ = evaluate_script(script, mutated_z)
+
+
+def test_unsupported_op():
+    script = TransactionScript.from_commands((TransactionOpCode.OP_MUL,))
+    with pytest.raises(OpCodeRejectedError, match="Unknown opcode"):
         _ = evaluate_script(script, b"")
+
+
+def test_execution_limit():
+    script = TransactionScript.from_commands((TransactionOpCode.OP_NOP,) * 1000)
+    with pytest.raises(ValueError, match="Execution limit"):
+        _ = evaluate_script(script, b"", execution_limit=1000)
