@@ -2,7 +2,7 @@ import functools
 import inspect
 from collections import deque
 from collections.abc import Callable
-from enum import IntFlag, auto
+from enum import IntEnum, IntFlag, auto
 from typing import Any, Concatenate
 
 from coincidence.crypto import ripemd160, sha1, sha256, verify_signature
@@ -20,6 +20,18 @@ class OpCodeInstructArguments(IntFlag):
     current_op = auto()
     cmds = auto()
     z = auto()
+
+
+class SignatureHashTypes(IntEnum):
+    """Signature hash types for transaction signature verification.
+
+    Ref: https://en.bitcoin.it/wiki/OP_CHECKSIG
+    """
+
+    ALL = 0x01
+    NONE = 0x02
+    SINGLE = 0x03
+    ANYONECANPAY = 0x80
 
 
 _TRANSACTION_OP_TABLE: dict[
@@ -90,14 +102,12 @@ def decode_num(data: bytes):
 def register_op(*ops: TransactionOpCode):
     def decorator[T: OpCodeCallback](func: T) -> T:
         signature = inspect.signature(func)
-        if any(
-            arg not in OpCodeInstructArguments.__members__
-            for arg in signature.parameters
-        ):  # pragma: no cover
-            raise ValueError(f"Invalid arguments: {signature}")
         flags = OpCodeInstructArguments.stack
-        for arg in signature.parameters:
-            flags |= OpCodeInstructArguments[arg]
+        try:
+            for arg in signature.parameters:
+                flags |= OpCodeInstructArguments[arg]
+        except KeyError as e:  # pragma: no cover
+            raise ValueError(f"Invalid arguments: {signature}") from e
         for op in ops:
             if conflicted := _TRANSACTION_OP_TABLE.get(op):  # pragma: no cover
                 raise ValueError(f"Conflicting opcode: {op=} {conflicted=} {func=}")
@@ -156,17 +166,17 @@ def op_if(stack: Stack, cmds: Commands, current_op: TransactionOpCode):
             case TransactionOpCode.OP_IF | TransactionOpCode.OP_NOTIF:
                 # nested if, we have to go another endif
                 num_endif_needed += 1
-                current_branch.append(item)
             case TransactionOpCode.OP_ELSE if num_endif_needed == 1:
                 current_branch = branch_false_commands
+                continue
             case TransactionOpCode.OP_ENDIF if num_endif_needed == 1:
                 found = True
                 break
             case TransactionOpCode.OP_ENDIF:
                 num_endif_needed -= 1
-                current_branch.append(item)
             case _:
-                current_branch.append(item)
+                pass
+        current_branch.append(item)
     if not found:
         raise OpCodeRejectedError("Unmatched OP_IF")
     condition = decode_num(stack.pop())
@@ -457,10 +467,10 @@ def op_hash(stack: Stack, current_op: TransactionOpCode):
 @assert_stack_size(2)
 def op_checksig(stack: Stack, z: bytes):
     pk = stack.pop()
-    # TODO: Deal with hashtype
-    # https://en.bitcoin.it/wiki/OP_CHECKSIG
-    sig = stack.pop()[:-1]
-    stack.append(encode_num(verify_signature(pk, sig, z)))
+    signature = stack.pop()
+    if signature[-1] != SignatureHashTypes.ALL:
+        raise OpCodeRejectedError("Invalid signature hash type")
+    stack.append(encode_num(verify_signature(pk, signature[:-1], z)))
 
 
 @register_op(TransactionOpCode.OP_CHECKSIGVERIFY)
@@ -475,19 +485,20 @@ def op_checkmultisig(stack: Stack, z: bytes):
     n = decode_num(stack.pop())
     if len(stack) <= n:
         raise InsufficientStackError
-    public_keys: list[bytes] = [stack.pop() for _ in range(n)]
+    public_keys = [stack.pop() for _ in range(n)]
     m = decode_num(stack.pop())
     if len(stack) <= m:
         raise InsufficientStackError
-    # TODO: Deal with hashtype
-    # https://en.bitcoin.it/wiki/OP_CHECKSIG
-    signatures: list[bytes] = [stack.pop()[:-1] for _ in range(m)]
+    signatures = [stack.pop() for _ in range(m)]
+    if any(sig[-1] != SignatureHashTypes.ALL for sig in signatures):
+        raise OpCodeRejectedError("Invalid signature hash type")
     # Due to a bug, one extra unused value is removed from the stack.
     _ = stack.pop()
     if not public_keys or not signatures:
-        raise ValueError("Invalid public keys or signatures")
+        raise OpCodeRejectedError("Invalid public keys or signatures")
     passed = all(
-        any(verify_signature(pk, sig, z) for pk in public_keys) for sig in signatures
+        any(verify_signature(pk, sig[:-1], z) for pk in public_keys)
+        for sig in signatures
     )
     stack.append(encode_num(passed))
 
