@@ -16,6 +16,10 @@
     },
     "files.encoding": "utf8",
     "python.testing.pytestEnabled": true,
+    "python.testing.unittestEnabled": false,
+    "python.experiments.optInto": [
+        "pythonTestAdapter",
+    ],
     "basedpyright.analysis.diagnosticMode": "workspace",
     "cSpell.words": [
         "extendleft",
