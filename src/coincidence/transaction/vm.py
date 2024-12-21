@@ -539,6 +539,8 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
     total_executions = 0
     while commands:
         command = commands.popleft()
+        if (total_executions := total_executions + 1) == execution_limit:
+            raise OpCodeRejectedError("Execution limit reached")
         alternative_args[OpCodeInstructArguments.current_op] = command
         if isinstance(command, bytes):
             stack.append(command)
@@ -552,6 +554,4 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
             if (arg.name is not None) and (arg is not OpCodeInstructArguments.stack)
         }
         callback(stack, **kwargs)
-        if (total_executions := total_executions + 1) == execution_limit:
-            raise OpCodeRejectedError("Execution limit reached")
     return total_executions, stack

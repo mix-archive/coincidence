@@ -62,7 +62,7 @@ def test_op_nop():
         )
     )
     count, stack = evaluate_script(script, b"")
-    assert count == 2
+    assert count == 3
     assert [*stack] == [encode_num(42)]
 
 
@@ -373,7 +373,7 @@ def test_op_checksig():
         (sig, sec, TransactionOpCode.OP_CHECKSIGVERIFY)
     )
     exec_count, stack = evaluate_script(script, z)
-    assert exec_count == 1
+    assert exec_count == 3
     assert len(stack) == 0
 
     mutated_z = z[:-1] + bytes([z[-1] + 1])
