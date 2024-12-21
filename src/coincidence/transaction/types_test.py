@@ -285,3 +285,43 @@ def test_transaction_signing():
         signed_tx.id.hex()
         == "af1324f6ab2b35d899164fd4aef74d1369dabddc702a03b75e5b28dd5603727b"
     )
+
+
+def test_transaction_coinbase():
+    # Create a coinbase transaction
+    coinbase_input = TransactionInput(
+        previous_transaction=bytes(32),  # All zeros
+        previous_index=0xFFFFFFFF,
+        script_signature=TransactionScript(b""),
+    )
+
+    coinbase_tx = Transaction(
+        version=1,
+        inputs=(coinbase_input,),
+        outputs=(),
+        locktime=0,
+    )
+    assert coinbase_tx.is_coinbase
+
+    # Test non-coinbase transaction
+    regular_input = TransactionInput(
+        previous_transaction=bytes.fromhex("ff" * 32),  # Non-zero transaction hash
+        previous_index=0,
+        script_signature=TransactionScript(b""),
+    )
+    regular_tx = Transaction(
+        version=1,
+        inputs=(regular_input,),
+        outputs=(),
+        locktime=0,
+    )
+    assert not regular_tx.is_coinbase
+
+    # Test transaction with multiple inputs
+    multi_input_tx = Transaction(
+        version=1,
+        inputs=(coinbase_input, regular_input),
+        outputs=(),
+        locktime=0,
+    )
+    assert not multi_input_tx.is_coinbase

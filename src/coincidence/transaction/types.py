@@ -396,6 +396,15 @@ class Transaction:
         """Transaction ID in reversed byte order."""
         return sha256(sha256(self.serialize()))[::-1]
 
+    @property
+    def is_coinbase(self) -> bool:
+        """Check if the transaction is a coinbase transaction."""
+        return (
+            len(self.inputs) == 1
+            and self.inputs[0].previous_transaction == bytes(32)
+            and self.inputs[0].previous_index == 0xFFFFFFFF  # noqa: PLR2004
+        )
+
     def signature_hash(
         self,
         input_index: int,
