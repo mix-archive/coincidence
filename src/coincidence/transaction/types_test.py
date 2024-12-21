@@ -2,7 +2,10 @@ from io import BytesIO
 
 import pytest
 
+from coincidence.crypto.keypair import BitcoinPrivateKey
+from coincidence.crypto.utils import sign_transaction
 from coincidence.transaction.types import (
+    SignatureHashTypes,
     Transaction,
     TransactionInput,
     TransactionOpCode,
@@ -11,6 +14,7 @@ from coincidence.transaction.types import (
     serialize_command_bytes,
     varint,
 )
+from coincidence.transaction.utils import p2pkh_script
 
 
 @pytest.mark.parametrize(
@@ -240,4 +244,44 @@ def test_transaction_hash():
     assert (
         tx.id[::-1].hex()
         == "169e1e83e930853391bc6f35f605c6754cfead57cf8387639d3b4096c54f18f4"
+    )
+
+
+def test_transaction_signing():
+    private_key = BitcoinPrivateKey.from_wif(
+        "cSDHYsxxhkrzLDA9EoUV9bdmn6fGyspYN8cCGwsdXdUxsmSnWgQT"
+    )
+
+    tx_in = (
+        TransactionInput(
+            previous_transaction=bytes.fromhex(
+                "0842d6084dddd67bdee2638f644d04ac576e046643c279a627fc1449bfc2a762"
+            )[::-1],
+            previous_index=1,
+        ),
+    )
+    tx_out = (
+        TransactionOutput(
+            value=3000, script_pubkey=p2pkh_script("mwJn1YPMq7y5F8J3LkC5Hxg9PHyZ5K4cFv")
+        ),
+        TransactionOutput(
+            value=1500, script_pubkey=p2pkh_script("mgPyDZCBtc2eKGQJ5ZTATyJ6zPnGhSuGjP")
+        ),
+    )
+    tx = Transaction(version=1, inputs=tx_in, outputs=tx_out, locktime=0)
+
+    prev_script = TransactionScript(
+        bytes.fromhex("76a91409a5fbec0427555863af578496fca5426e18297288ac")
+    )
+    hash_ = tx.signature_hash(0, prev_script)
+    signature = sign_transaction(hash_, private_key) + SignatureHashTypes.ALL.to_bytes(
+        1, "big"
+    )
+
+    signed_tx = tx.replace_input_script(
+        0, TransactionScript.from_commands([signature, private_key.public_key().sec])
+    )
+    assert (
+        signed_tx.id.hex()
+        == "af1324f6ab2b35d899164fd4aef74d1369dabddc702a03b75e5b28dd5603727b"
     )
