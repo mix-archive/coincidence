@@ -19,6 +19,7 @@ dev = [
     "pytest-sugar>=1.0.0",
     "pytest-cov>=6.0.0",
     "pytest-randomly>=3.16.0",
+    "requests>=2.32.3",
 ]
 
 [tool.basedpyright]
