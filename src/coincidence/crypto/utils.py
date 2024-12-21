@@ -4,6 +4,7 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ec import (
     ECDSA,
     SECP256K1,
+    EllipticCurvePrivateKey,
     EllipticCurvePublicKey,
 )
 from cryptography.hazmat.primitives.asymmetric.utils import Prehashed
@@ -63,3 +64,20 @@ def verify_signature(pk: bytes, sig: bytes, data: bytes) -> bool:
     except InvalidSignature:
         return False
     return True
+
+
+def sign_transaction(hash_: bytes, private_key: EllipticCurvePrivateKey) -> bytes:
+    """Sign a transaction hash with the private key.
+
+    Args:
+        hash_ (bytes): The hash of the transaction to sign
+        private_key (EllipticCurvePrivateKey): The private key to sign with
+
+    Returns:
+        bytes: The DER-encoded signature
+
+    """
+    return private_key.sign(
+        hash_,
+        ECDSA(Prehashed(SHA256()), deterministic_signing=True),
+    )

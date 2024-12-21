@@ -1,10 +1,12 @@
 import pytest
 
+from coincidence.crypto.keypair import BitcoinPrivateKey
 from coincidence.crypto.utils import (
     RIPEMD160,
     ripemd160,
     sha1,
     sha256,
+    sign_transaction,
     verify_signature,
 )
 
@@ -142,3 +144,25 @@ def test_verify_signature():
     )
     assert verify_signature(pubkey, signature, sha256(sha256(tx)))
     assert not verify_signature(pubkey, signature, sha256(sha256(tx + b" ")))
+
+
+def test_sign_transaction():
+    # Generate test key pair
+    private_key = BitcoinPrivateKey.generate()
+    public_key = private_key.public_key()
+
+    # Test message
+    test_msg = b"test message"
+    msg_hash = sha256(sha256(test_msg))
+
+    # Sign and verify
+    signature = sign_transaction(msg_hash, private_key)
+    assert verify_signature(public_key.sec, signature, msg_hash)
+
+    # Verify signature is deterministic
+    signature_2 = sign_transaction(msg_hash, private_key)
+    assert signature == signature_2
+
+    # Verify fails for modified message
+    modified_hash = sha256(sha256(test_msg + b"modified"))
+    assert not verify_signature(public_key.sec, signature, modified_hash)
