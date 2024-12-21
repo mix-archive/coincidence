@@ -1,7 +1,7 @@
 import dataclasses
 from collections import deque
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import IntEnum
 from io import BytesIO
 from typing import IO, Self, override
@@ -304,7 +304,7 @@ class TransactionInput:
     """Previous transaction SHA256 hash"""
     previous_index: int
     """UTXO index in the previous transaction"""
-    script_signature: TransactionScript
+    script_signature: TransactionScript = field(default_factory=TransactionScript)
     """Unlocking script"""
     sequence: int = 0xFFFFFFFF
 
@@ -359,8 +359,6 @@ class Transaction:
     outputs: tuple[TransactionOutput, ...]
     locktime: int
     """Block height or timestamp at which this transaction is valid"""
-    hash: bytes | None = None
-    """Transaction SHA256 hash"""
 
     def serialize(self) -> bytes:
         return self.version.to_bytes(4, "little") + (
@@ -393,6 +391,11 @@ class Transaction:
         """
         raise NotImplementedError
 
+    @property
+    def id(self) -> bytes:
+        """Transaction ID in reversed byte order."""
+        return sha256(sha256(self.serialize()))[::-1]
+
     def signature_hash(
         self,
         input_index: int,
@@ -422,3 +425,20 @@ class Transaction:
         hash_target = dataclasses.replace(self, inputs=inputs).serialize()
         hash_target += hash_type.to_bytes(4, "little")
         return sha256(sha256(hash_target))
+
+    def replace_input_script(self, input_index: int, script: TransactionScript) -> Self:
+        """Replace the script signature for the input at the given index.
+
+        This method creates a new transaction object with the script signature, which
+        unlocks the input at the given index.
+        """
+        inputs = tuple(
+            dataclasses.replace(
+                tx_in,
+                script_signature=(
+                    script if i == input_index else tx_in.script_signature
+                ),
+            )
+            for i, tx_in in enumerate(self.inputs)
+        )
+        return dataclasses.replace(self, inputs=inputs)
