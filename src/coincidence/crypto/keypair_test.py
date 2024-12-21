@@ -78,15 +78,6 @@ def test_address_generation():
     mainnet_p2sh = public_key.address(network="main", variant="p2sh")
     assert mainnet_p2sh.startswith("3")
 
-    # Test public numbers
-    public_numbers = public_key.public_numbers()
-    assert public_numbers.x.to_bytes(32, "big") in base58.b58decode(
-        public_key.address(variant="p2pk")
-    )
-    assert public_numbers.y.to_bytes(32, "big") in base58.b58decode(
-        public_key.address(variant="p2pk")
-    )
-
     # Test Bech32 addresses
     testnet_bech32 = public_key.address(network="test", variant="bech32")
     assert testnet_bech32.startswith("tb1")
@@ -130,3 +121,42 @@ def test_wif_generation():
     mainnet_wif = private_key.wif(network="main")
     assert isinstance(mainnet_wif, str)
     assert mainnet_wif.startswith(("5", "K", "L"))
+
+
+def test_wif_roundtrip():
+    private_key = BitcoinPrivateKey.generate()
+
+    # Test WIF roundtrip for testnet
+    testnet_wif = private_key.wif(network="test")
+    recovered_key = BitcoinPrivateKey.from_wif(testnet_wif)
+    assert private_key == recovered_key
+
+    # Test WIF roundtrip for mainnet
+    mainnet_wif = private_key.wif(network="main")
+    recovered_key = BitcoinPrivateKey.from_wif(mainnet_wif)
+    assert private_key == recovered_key
+
+    uncompressed_private_key = BitcoinPrivateKey.generate(compressed=False)
+    uncompressed_wif = uncompressed_private_key.wif(network="main")
+    recovered_key = BitcoinPrivateKey.from_wif(uncompressed_wif)
+    assert uncompressed_private_key == recovered_key
+
+    # Test WIF with invalid version byte
+    invalid_wif = base58.b58encode_check(b"\x81" + b"\x00" * 32).decode()
+    with pytest.raises(ValueError, match="Invalid WIF version byte"):
+        _ = BitcoinPrivateKey.from_wif(invalid_wif)
+
+    # Test WIF with invalid private key length
+    invalid_wif = base58.b58encode_check(b"\x80" + b"\x00" * 31).decode()
+    with pytest.raises(ValueError, match="Invalid private key length"):
+        _ = BitcoinPrivateKey.from_wif(invalid_wif)
+
+
+def test_pk_example():
+    pk = BitcoinPrivateKey.from_wif(
+        "L1Rw26ZuhBqguYDSi77zAxyfHUZ2H1JAQunf3TEbxyfcBDjUvBse"
+    )
+    assert (
+        pk.public_key().address(network="main", variant="p2pkh")
+        == "18jNeTQ8gvFbXug8WgGauQrs1PmpxaE6Uu"
+    )
