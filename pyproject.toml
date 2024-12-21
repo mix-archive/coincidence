@@ -18,7 +18,7 @@ dev = [
     "pytest>=8.3.4",
     "pytest-sugar>=1.0.0",
     "pytest-cov>=6.0.0",
-    "pytest-randomly>=3.16.0",
+    "pytest-random-order>=1.1.1",
     "requests>=2.32.3",
 ]
 
@@ -54,7 +54,7 @@ ignore = [
 distribution = true
 
 [tool.pdm.scripts]
-test = "pytest --cov"
+test = "pytest --cov --random-order --random-order-bucket=global"
 format = "ruff format"
 lint = "ruff check"
 
