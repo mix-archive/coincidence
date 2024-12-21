@@ -1,0 +1,23 @@
+{
+  "hash": "00000000050430181b8703362dfd7a0a65894bedc01e7c1a11f10ac404b59343",
+  "confirmations": 828737,
+  "height": 47015,
+  "version": 1,
+  "versionHex": "00000001",
+  "merkleroot": "4cd1b07b8bdc23fcdb8c532bba61e4fc95db2ffd770d6adc4f9196cd38a72768",
+  "time": 1269515798,
+  "mediantime": 1269513039,
+  "nonce": 162408008,
+  "bits": "1c381375",
+  "difficulty": 4.56516291033707,
+  "chainwork": "00000000000000000000000000000000000000000000000000010b6ccad5afb8",
+  "nTx": 1,
+  "previousblockhash": "00000000087fcf794c2a98e219955e804bf5cc000a47df85512473598b3d5795",
+  "nextblockhash": "0000000010b30d85b3084b2740bc00bc3153ce50e74f1b93e5170291ed563cb2",
+  "strippedsize": 215,
+  "size": 215,
+  "weight": 860,
+  "tx": [
+    "4cd1b07b8bdc23fcdb8c532bba61e4fc95db2ffd770d6adc4f9196cd38a72768"
+  ]
+}
