@@ -1,4 +1,5 @@
 import json
+import math
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
@@ -58,11 +59,13 @@ def test_block_header(block_data: BlockData, binary: bytes) -> None:
     assert block.version == block_data.version
     assert block.previous_block == bytes.fromhex(block_data.previousblockhash)[::-1]
     assert block.merkle_root == bytes.fromhex(block_data.merkleroot)[::-1]
-    assert block.timestamp == block_data.time
+    assert int(block.timestamp.timestamp()) == block_data.time
     assert block.bits == int(block_data.bits, 16)
 
-    assert id(block.features)
+    assert isinstance(block.features, int)
     assert block.hash == bytes.fromhex(block_data.hash)
     assert block.hash < block.target
+    assert block.replace_nonce(0).hash >= block.target
+    assert math.isclose(block.difficulty, block_data.difficulty)
 
     assert binary.startswith(block.serialize())

@@ -1,5 +1,6 @@
 import dataclasses
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from enum import IntEnum, IntFlag
 from typing import IO, Self
 
@@ -31,7 +32,7 @@ class Block:
     version: int
     previous_block: bytes
     merkle_root: bytes
-    timestamp: int
+    timestamp: datetime
     bits: int
     nonce: int
 
@@ -55,6 +56,10 @@ class Block:
         coefficient = self.bits & 0x00FFFFFF
         return (coefficient << (8 * (exponent - 3))).to_bytes(32, "big")
 
+    @property
+    def difficulty(self) -> float:
+        return 0xFFFF * 2 ** (8 * (0x1D - 3)) / int.from_bytes(self.target, "big")
+
     def replace_nonce(self, nonce: int) -> Self:
         return dataclasses.replace(self, nonce=nonce)
 
@@ -63,7 +68,7 @@ class Block:
             self.version.to_bytes(4, "little")
             + self.previous_block
             + self.merkle_root
-            + self.timestamp.to_bytes(4, "little")
+            + int(self.timestamp.timestamp()).to_bytes(4, "little")
             + self.bits.to_bytes(4, "little")
             + self.nonce.to_bytes(4, "little")
         )
@@ -73,7 +78,9 @@ class Block:
         version = int.from_bytes(data.read(4), "little")
         previous_block = data.read(32)
         merkle_root = data.read(32)
-        timestamp = int.from_bytes(data.read(4), "little")
+        timestamp = datetime.fromtimestamp(
+            int.from_bytes(data.read(4), "little"), tz=UTC
+        )
         bits = int.from_bytes(data.read(4), "little")
         nonce = int.from_bytes(data.read(4), "little")
         return cls(version, previous_block, merkle_root, timestamp, bits, nonce)
