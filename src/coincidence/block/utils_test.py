@@ -3,7 +3,7 @@ import pytest
 from coincidence.block.utils import MerkleTree, ProofPosition
 from coincidence.crypto.utils import sha256
 
-from .types_test import BlockData, all_block_data
+from .types_test import BlockData, all_block_data, block_ids
 
 
 def test_empty_list():
@@ -11,11 +11,7 @@ def test_empty_list():
         _ = MerkleTree.from_hashes([])
 
 
-@pytest.mark.parametrize(
-    "block_data",
-    all_block_data,
-    ids=[f"{block_data.height:06d}" for block_data in all_block_data],
-)
+@pytest.mark.parametrize("block_data", all_block_data, ids=block_ids)
 def test_block_merkle_root(block_data: BlockData):
     hashes = [bytes.fromhex(tx)[::-1] for tx in block_data.tx]
     expected = bytes.fromhex(block_data.merkleroot)[::-1]
@@ -23,12 +19,8 @@ def test_block_merkle_root(block_data: BlockData):
     assert MerkleTree.from_hashes(hashes).hash == expected
 
 
-@pytest.mark.parametrize(
-    "block_data",
-    all_block_data,
-    ids=[f"{block_data.height:06d}" for block_data in all_block_data],
-)
-def test_block_merkle_path(block_data: BlockData):
+@pytest.mark.parametrize("block_data", all_block_data, ids=block_ids)
+def test_block_merkle_proof(block_data: BlockData):
     hashes = [bytes.fromhex(tx)[::-1] for tx in block_data.tx]
     merkle_tree = MerkleTree.from_hashes(hashes)
 
