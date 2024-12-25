@@ -182,6 +182,10 @@ def build_script_bytecode(commands: Iterable[Command]) -> bytes:
     return bytes(bytecode)
 
 
+class InvalidOpcodeError(ValueError):
+    pass
+
+
 @lru_cache
 def dissect_script_bytecode(bytecode: bytes) -> tuple[Command, ...]:
     commands: list[Command] = []
@@ -203,5 +207,5 @@ def dissect_script_bytecode(bytecode: bytes) -> tuple[Command, ...]:
             case code if code in TransactionOpCode:
                 commands.append(TransactionOpCode(code))
             case _:
-                raise ValueError(f"Invalid opcode: {opcode}")
+                raise InvalidOpcodeError(f"Invalid opcode: {opcode}")
     return tuple(commands)

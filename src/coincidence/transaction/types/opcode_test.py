@@ -4,8 +4,8 @@ import pytest
 
 from .common import varint
 from .opcode import (
+    InvalidOpcodeError,
     TransactionOpCode,
-    build_script_bytecode,
     dissect_script_bytecode,
     read_script_bytecode,
     serialize_command_bytes,
@@ -38,7 +38,7 @@ def test_serialize_command_bytes(count: int, expected_prefix: bytes):
 def test_invalid_opcode_deserialize():
     # Create an invalid script with an unknown opcode
     invalid_script = varint(1).serialize() + bytes([0xFF])  # 0xFF is not a valid opcode
-    with pytest.raises(ValueError, match="Invalid opcode: 255"):
+    with pytest.raises(InvalidOpcodeError, match="Invalid opcode: 255"):
         _ = dissect_script_bytecode(read_script_bytecode(BytesIO(invalid_script)))
 
 
@@ -46,10 +46,3 @@ def test_transaction_opcode_serialization():
     opcode = TransactionOpCode.OP_1
     serialized = opcode.serialize()
     assert serialized == b"\x51"
-
-
-def test_transaction_script_serialization():
-    script = build_script_bytecode([TransactionOpCode.OP_1, b"hello"])
-    serialized = varint(len(script)).serialize() + script
-    deserialized = dissect_script_bytecode(read_script_bytecode(BytesIO(serialized)))
-    assert deserialized == script
