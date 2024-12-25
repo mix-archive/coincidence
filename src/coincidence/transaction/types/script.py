@@ -1,8 +1,9 @@
 import abc
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from enum import IntFlag, auto
-from typing import IO, ClassVar, Self, override
+from enum import Flag, auto
+from typing import IO, Self, final, override
 
 from base58 import b58decode_check
 
@@ -12,6 +13,7 @@ from coincidence.crypto.utils import RIPEMD160
 from .common import decode_num, encode_num, varint
 from .opcode import (
     Command,
+    InvalidOpcodeError,
     TransactionOpCode,
     build_script_bytecode,
     dissect_script_bytecode,
@@ -19,7 +21,7 @@ from .opcode import (
 )
 
 
-class ScriptDeserializationFlag(IntFlag):
+class ScriptDeserializationFlag(Flag):
     FROM_COINBASE = auto()
     FROM_INPUT = auto()
     FROM_OUTPUT = auto()
@@ -29,8 +31,6 @@ class ScriptDeserializationFlag(IntFlag):
 
 
 class BaseTransactionScript(abc.ABC):
-    dispatches: ClassVar[set[type[Self]]] = set()
-
     @property
     @abc.abstractmethod
     def bytecode(self) -> bytes:
@@ -48,8 +48,8 @@ class BaseTransactionScript(abc.ABC):
         cls, reader: IO[bytes], flags: ScriptDeserializationFlag
     ) -> "BaseTransactionScript":
         bytecode = read_script_bytecode(reader)
-        for dispatch in cls.dispatches:
-            if dispatch in (CommonTransactionScript, cls):
+        for dispatch in cls.__subclasses__():
+            if dispatch is CommonTransactionScript:
                 continue
             if script := dispatch.from_bytecode(bytecode, flags):
                 return script
@@ -59,12 +59,6 @@ class BaseTransactionScript(abc.ABC):
         bytecode = self.bytecode
         return varint(len(bytecode)).serialize() + bytecode
 
-    @override
-    @classmethod
-    def __subclasshook__(cls, subclass: type[Self], /) -> bool:
-        cls.dispatches.add(subclass)
-        return super().__subclasshook__(subclass)
-
     @property
     def commands(self) -> tuple[Command, ...]:
         return dissect_script_bytecode(self.bytecode)
@@ -73,7 +67,7 @@ class BaseTransactionScript(abc.ABC):
     def __repr__(self):
         try:
             commands = repr([*self.commands])
-        except ValueError:
+        except InvalidOpcodeError:
             commands = "..."
         bytecode = repr(self.bytecode)
         if len(bytecode) > 32:  # noqa: PLR2004
@@ -84,6 +78,7 @@ class BaseTransactionScript(abc.ABC):
         return CommonTransactionScript(self.bytecode + other.bytecode)
 
 
+@final
 @dataclass(frozen=True, repr=False)
 class CommonTransactionScript(BaseTransactionScript):
     _bytecode: bytes = b""
@@ -105,36 +100,43 @@ class CommonTransactionScript(BaseTransactionScript):
         return cls(build_script_bytecode(commands))
 
 
+@final
 @dataclass(frozen=True, repr=False)
 class CoinbaseScript(BaseTransactionScript):
     height: int | None = None
-    other_data: bytes = b""
+    remains: bytes = b""
 
     @property
     @override
     def bytecode(self) -> bytes:
-        commands = [*self.commands]
-        if self.height:
-            commands.insert(0, encode_num(self.height))
-        return build_script_bytecode(commands)
+        return (
+            build_script_bytecode([encode_num(self.height)]) if self.height else b""
+        ) + self.remains
 
     @classmethod
     @override
     def from_bytecode(
         cls, bytecode: bytes, flags: ScriptDeserializationFlag
     ) -> Self | None:
-        if not flags & ScriptDeserializationFlag.FROM_COINBASE:
-            return None
-        commands = dissect_script_bytecode(bytecode)
-        if (
-            commands
-            and isinstance(height_data := commands[0], bytes)
-            and 0 < (height := decode_num(height_data)) < (1 << 32)
+        if not (
+            flags & ScriptDeserializationFlag.FROM_COINBASE
+            and flags & ScriptDeserializationFlag.FROM_INPUT
         ):
-            return cls(height, build_script_bytecode(commands[1:]))
-        return cls(other_data=bytecode)
+            return None
+        # Because coinbase scripts includes very random script, we can't really
+        # serialize it back to the original script. So we just parse first bytes
+        matched = re.match(
+            rb"^(\x01.{1}|\x02.{2}|\x03.{3}|\x04.{4})(.*)$",
+            bytecode,
+            re.DOTALL,
+        )
+        if matched is None:
+            return cls(remains=bytecode)
+        height_byte, remains = matched.groups()
+        return cls(decode_num(height_byte[1:]), remains)
 
 
+@final
 @dataclass(frozen=True, repr=False)
 class PayToPublicKeyScript(BaseTransactionScript):
     pubkey: BitcoinPublicKey
@@ -162,6 +164,7 @@ class PayToPublicKeyScript(BaseTransactionScript):
                 return None
 
 
+@final
 @dataclass(frozen=True, repr=False)
 class PayToPublicKeyHashScript(BaseTransactionScript):
     hash160: bytes
@@ -204,6 +207,7 @@ class PayToPublicKeyHashScript(BaseTransactionScript):
         return cls(b58decode_check(address)[1:])
 
 
+@final
 @dataclass(frozen=True, repr=False)
 class SignatureScript(BaseTransactionScript):
     signature: bytes

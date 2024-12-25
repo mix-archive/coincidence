@@ -96,13 +96,15 @@ class Transaction:
     @classmethod
     def deserialize(cls, data: IO[bytes], flags: ScriptDeserializationFlag):
         version = int.from_bytes(data.read(4), "little")
+        total_inputs = varint.deserialize(data)
+        if flags & flags.FROM_COINBASE and total_inputs != 1:
+            flags &= ~ScriptDeserializationFlag.FROM_COINBASE
         inputs = tuple(
-            TransactionInput.deserialize(data, flags)
-            for _ in range(varint.deserialize(data))
+            TransactionInput.deserialize(data, flags) for _ in range(total_inputs)
         )
+        total_outputs = varint.deserialize(data)
         outputs = tuple(
-            TransactionOutput.deserialize(data, flags)
-            for _ in range(varint.deserialize(data))
+            TransactionOutput.deserialize(data, flags) for _ in range(total_outputs)
         )
         locktime = int.from_bytes(data.read(4), "little")
         return cls(version, inputs, outputs, locktime)
