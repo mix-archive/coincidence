@@ -1,6 +1,6 @@
 import pytest
 
-from coincidence.block.utils import MerkleTree, ProofPosition
+from coincidence.block.utils import MerkleTree, ProofPosition, calculate_subsidy
 from coincidence.crypto.utils import sha256
 
 from .types_test import BlockData, all_block_data, block_ids
@@ -50,3 +50,13 @@ def test_block_merkle_proof(block_data: BlockData):
     for tx in hashes:
         path = merkle_tree.proof(b"\x00" + tx + b"\x00")
         assert path is None
+
+
+def test_calculate_subsidy():
+    assert calculate_subsidy(0) == 5000000000
+    assert calculate_subsidy(209999) == 5000000000
+    assert calculate_subsidy(210000) == 2500000000
+    assert calculate_subsidy(419999) == 2500000000
+    assert calculate_subsidy(420000) == 1250000000
+    assert calculate_subsidy(629999) == 1250000000
+    assert calculate_subsidy(630000) == 625000000

@@ -73,3 +73,9 @@ class MerkleTree:
                     for pair in zip_longest(rest[::2], rest[1::2], fillvalue=rest[-1])
                 ]
                 return cls.from_hashes(nodes)
+
+
+def calculate_subsidy(height: int) -> int:
+    halving = height // 210000
+    initial = 50 * 100_000_000
+    return initial >> halving
