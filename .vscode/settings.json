@@ -23,6 +23,7 @@
     "basedpyright.analysis.diagnosticMode": "workspace",
     "cSpell.words": [
         "extendleft",
+        "merkle",
         "popleft",
         "RIPEMD",
         "VARINT"
