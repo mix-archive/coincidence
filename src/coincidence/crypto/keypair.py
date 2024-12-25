@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Literal, Self, final, override
 
 import base58
@@ -62,7 +63,7 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
             else self.base == other
         )
 
-    @property
+    @cached_property
     def sec(self) -> bytes:
         """Return the SEC representation of the public key."""
         return self.public_bytes(
@@ -74,10 +75,17 @@ class BitcoinPublicKey(EllipticCurvePublicKey):
             ),
         )
 
-    @property
+    @cached_property
     def hash160(self) -> bytes:
         """Return the RIPEMD160 hash of the SHA256 hash of the public key."""
         return ripemd160(sha256(self.sec))
+
+    @classmethod
+    def from_sec(cls, sec: bytes) -> Self:
+        return cls(
+            EllipticCurvePublicKey.from_encoded_point(SECP256K1(), sec),
+            compressed=len(sec) == 1 + 32,
+        )
 
     def address(
         self,

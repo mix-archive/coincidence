@@ -86,17 +86,14 @@ def test_address_generation():
     assert mainnet_bech32.startswith("bc1")
 
 
-def test_key_serialization():
-    private_key = BitcoinPrivateKey.generate()
+@pytest.mark.parametrize(
+    "compressed", [True, False], ids=["compressed", "uncompressed"]
+)
+def test_key_serialization(*, compressed: bool):
+    private_key = BitcoinPrivateKey.generate(compressed=compressed)
     public_key = private_key.public_key()
 
-    # Test public key serialization
-    public_bytes = public_key.public_bytes(
-        encoding=serialization.Encoding.X962,
-        format=serialization.PublicFormat.UncompressedPoint,
-    )
-    assert isinstance(public_bytes, bytes)
-    assert len(public_bytes) == 65  # Uncompressed public key is 65 bytes
+    assert public_key == BitcoinPublicKey.from_sec(public_key.sec)
 
     # Test private key serialization
     private_bytes = private_key.private_bytes(
