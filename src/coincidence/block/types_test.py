@@ -42,7 +42,7 @@ block_ids: list[str] = []
 all_block_data: list[BlockData] = []
 all_block_binary: list[bytes] = []
 
-for block_file in FIXTURES_DIR.glob("*.json"):
+for block_file in sorted(FIXTURES_DIR.glob("*.json")):
     block_ids.append(block_file.stem)
     with block_file.open("r") as f:
         loaded: dict[str, Any] = json.load(f)  # pyright:ignore[reportExplicitAny]
@@ -94,4 +94,4 @@ def test_block_with_transaction(block_data: BlockData, binary: bytes) -> None:
             flag |= ScriptDeserializationFlag.FROM_COINBASE
         tx = Transaction.deserialize(reader, flag)
         if tx.id != bytes.fromhex(tx_id):
-            pytest.skip(f"Skipping test for transaction {tx_id}")
+            pytest.xfail(f"Skipping test for transaction {tx_id}")
