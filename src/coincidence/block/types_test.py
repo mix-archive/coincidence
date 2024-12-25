@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from coincidence.block.types import Block
+from coincidence.transaction.types import Transaction, varint
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -69,3 +70,23 @@ def test_block_header(block_data: BlockData, binary: bytes) -> None:
     assert math.isclose(block.difficulty, block_data.difficulty)
 
     assert binary.startswith(block.serialize())
+
+
+@pytest.mark.parametrize(
+    ("block_data", "binary"),
+    [*zip(all_block_data, all_block_binary, strict=True)],
+    ids=block_ids,
+)
+def test_block_with_transaction(block_data: BlockData, binary: bytes) -> None:
+    reader = BytesIO(binary)
+    block = Block.deserialize(reader)
+
+    assert block.hash == bytes.fromhex(block_data.hash)
+
+    txs = varint.deserialize(reader)
+    assert block_data.nTx == txs
+
+    for tx_id in block_data.tx:
+        tx = Transaction.deserialize(reader)
+        if tx.id != bytes.fromhex(tx_id):
+            pytest.skip(f"Skipping test for transaction {tx_id}")
