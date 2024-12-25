@@ -8,7 +8,9 @@ from typing import Any
 import pytest
 
 from coincidence.block.types import Block
-from coincidence.transaction.types import Transaction, varint
+from coincidence.transaction.types.common import varint
+from coincidence.transaction.types.script import ScriptDeserializationFlag
+from coincidence.transaction.types.transaction import Transaction
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
@@ -86,7 +88,10 @@ def test_block_with_transaction(block_data: BlockData, binary: bytes) -> None:
     txs = varint.deserialize(reader)
     assert block_data.nTx == txs
 
-    for tx_id in block_data.tx:
-        tx = Transaction.deserialize(reader)
+    for i, tx_id in enumerate(block_data.tx):
+        flag = ScriptDeserializationFlag(0)
+        if i == 0:
+            flag |= ScriptDeserializationFlag.FROM_COINBASE
+        tx = Transaction.deserialize(reader, flag)
         if tx.id != bytes.fromhex(tx_id):
             pytest.skip(f"Skipping test for transaction {tx_id}")

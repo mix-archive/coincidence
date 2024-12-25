@@ -1,7 +1,8 @@
 import pytest
 
-from coincidence.transaction.types import TransactionOpCode, TransactionScript
-from coincidence.transaction.vm import (
+from .types.opcode import TransactionOpCode
+from .types.script import CommonTransactionScript as TransactionScript
+from .vm import (
     InsufficientStackError,
     OpCodeRejectedError,
     decode_num,

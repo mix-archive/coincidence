@@ -2,43 +2,71 @@ from io import BytesIO
 
 import pytest
 
-from coincidence.transaction.types import (
+from coincidence.crypto.keypair import BitcoinPrivateKey
+from coincidence.crypto.utils import sign_transaction
+from coincidence.transaction.types.script import (
+    BaseTransactionScript,
+    CommonTransactionScript,
+    PayToPublicKeyHashScript,
+    ScriptDeserializationFlag,
+    SignatureScript,
+)
+from coincidence.transaction.types.transaction import (
+    SignatureHashTypes,
     Transaction,
     TransactionInput,
-    TransactionOpCode,
     TransactionOutput,
-    TransactionScript,
 )
 from coincidence.transaction.utils import (
     TransactionValidationError,
-    p2pkh_script,
     validate_transaction_scripts,
 )
 
 
-def test_p2pkh_script_from_address():
-    # Test creating P2PKH from a base58 address string
-    address = "1PMycacnJaSqwwJqjawXBErnLsZ7RkXUAs"
-    script = p2pkh_script(address)
-    expected_hash160 = bytes.fromhex("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31")
+def test_transaction_signing():
+    private_key = BitcoinPrivateKey.from_wif(
+        "cSDHYsxxhkrzLDA9EoUV9bdmn6fGyspYN8cCGwsdXdUxsmSnWgQT"
+    )
 
-    assert script.commands[0] == TransactionOpCode.OP_DUP
-    assert script.commands[1] == TransactionOpCode.OP_HASH160
-    assert script.commands[2] == expected_hash160
-    assert script.commands[3] == TransactionOpCode.OP_EQUALVERIFY
-    assert script.commands[4] == TransactionOpCode.OP_CHECKSIG
+    tx_in = (
+        TransactionInput(
+            previous_transaction=bytes.fromhex(
+                "0842d6084dddd67bdee2638f644d04ac576e046643c279a627fc1449bfc2a762"
+            )[::-1],
+            previous_index=1,
+        ),
+    )
+    tx_out = (
+        TransactionOutput(
+            value=3000,
+            script_pubkey=PayToPublicKeyHashScript.from_address(
+                "mwJn1YPMq7y5F8J3LkC5Hxg9PHyZ5K4cFv"
+            ),
+        ),
+        TransactionOutput(
+            value=1500,
+            script_pubkey=PayToPublicKeyHashScript.from_address(
+                "mgPyDZCBtc2eKGQJ5ZTATyJ6zPnGhSuGjP"
+            ),
+        ),
+    )
+    tx = Transaction(version=1, inputs=tx_in, outputs=tx_out, locktime=0)
 
+    prev_script = CommonTransactionScript(
+        bytes.fromhex("76a91409a5fbec0427555863af578496fca5426e18297288ac")
+    )
+    hash_ = tx.signature_hash(0, prev_script)
+    signature = sign_transaction(hash_, private_key) + SignatureHashTypes.ALL.to_bytes(
+        1, "big"
+    )
 
-def test_p2pkh_script_from_hash160():
-    # Test creating P2PKH from raw hash160 bytes
-    hash160 = bytes.fromhex("f54a5851e9372b87810a8e60cdd2e7cfd80b6e31")
-    script = p2pkh_script(hash160)
-
-    assert script.commands[0] == TransactionOpCode.OP_DUP
-    assert script.commands[1] == TransactionOpCode.OP_HASH160
-    assert script.commands[2] == hash160
-    assert script.commands[3] == TransactionOpCode.OP_EQUALVERIFY
-    assert script.commands[4] == TransactionOpCode.OP_CHECKSIG
+    signed_tx = tx.replace_input_script(
+        0, SignatureScript(signature, private_key.public_key())
+    )
+    assert (
+        signed_tx.id.hex()
+        == "af1324f6ab2b35d899164fd4aef74d1369dabddc702a03b75e5b28dd5603727b"
+    )
 
 
 def test_p2pkh_script():
@@ -53,11 +81,15 @@ def test_p2pkh_script():
     tx_outs = (
         TransactionOutput(
             value=int(0.33 * 100000000),
-            script_pubkey=p2pkh_script("mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2"),
+            script_pubkey=PayToPublicKeyHashScript.from_address(
+                "mzx5YhAH9kNHtcN481u6WkjeHjYtVeKVh2"
+            ),
         ),
         TransactionOutput(
             value=int(0.10 * 100000000),
-            script_pubkey=p2pkh_script("mnrVtF8DWjMu839VW3rBfgYaAfKk8983Xf"),
+            script_pubkey=PayToPublicKeyHashScript.from_address(
+                "mnrVtF8DWjMu839VW3rBfgYaAfKk8983Xf"
+            ),
         ),
     )
     tx = Transaction(
@@ -95,7 +127,7 @@ def test_validate_transaction_scripts_raw_bytes():
         "000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac1943"
         "0600"
     )
-    tx = Transaction.deserialize(BytesIO(serialized))
+    tx = Transaction.deserialize(BytesIO(serialized), ScriptDeserializationFlag(0))
     script_bytes = bytes.fromhex("1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac")
 
     # Test with raw bytes script
@@ -105,11 +137,11 @@ def test_validate_transaction_scripts_raw_bytes():
 def test_validate_transaction_scripts_fails_validation():
     tx = Transaction(
         version=1,
-        inputs=(TransactionInput(b"x" * 32, 0, TransactionScript()),),
+        inputs=(TransactionInput(b"x" * 32, 0, CommonTransactionScript()),),
         outputs=(),
         locktime=0,
     )
-    invalid_script = TransactionScript()  # Empty script will fail validation
+    invalid_script = CommonTransactionScript()  # Empty script will fail validation
 
     with pytest.raises(TransactionValidationError, match="Script validation failed"):
         _ = validate_transaction_scripts(tx, [invalid_script])
@@ -126,11 +158,13 @@ def test_transaction_signature_hash():
         "000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac1943"
         "0600"
     )
-    tx = Transaction.deserialize(BytesIO(serialized))
+    tx = Transaction.deserialize(BytesIO(serialized), ScriptDeserializationFlag(0))
     serialized_script = bytes.fromhex(
         "1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac"
     )
-    former_script = TransactionScript.deserialize(BytesIO(serialized_script))
+    former_script = BaseTransactionScript.deserialize(
+        BytesIO(serialized_script), ScriptDeserializationFlag(0)
+    )
     signature_hash = tx.signature_hash(0, former_script)
     assert signature_hash == bytes.fromhex(
         "27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6"

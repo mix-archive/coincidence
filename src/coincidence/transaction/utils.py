@@ -1,40 +1,9 @@
 from io import BytesIO
 
-from base58 import b58decode_check
-
-from .types import Transaction, TransactionOpCode, TransactionScript
-from .vm import OpCodeRejectedError, Stack, decode_num, evaluate_script
-
-
-def p2pkh_script(hash160: bytes | str):
-    """Create a Pay-to-Public-Key-Hash (P2PKH) script from a given hash.
-
-    P2PKH is a standard Bitcoin transaction script that enables sending bitcoins to a
-    specific bitcoin address. The script ensures that only the owner of the private key
-    corresponding to the public key hash can spend the funds.
-
-    Args:
-        hash160: Either a raw bytes public key hash or a
-            base58-encoded Bitcoin address string. If a string is provided, it will be
-            base58 decoded and the version byte will be stripped.
-
-    Returns: A TransactionScript object representing the P2PKH script
-
-    Raises:
-        ValueError: If the base58 decoding fails for string input
-
-    """
-    if isinstance(hash160, str):
-        hash160 = b58decode_check(hash160)[1:]
-    return TransactionScript.from_commands(
-        [
-            TransactionOpCode.OP_DUP,
-            TransactionOpCode.OP_HASH160,
-            hash160,
-            TransactionOpCode.OP_EQUALVERIFY,
-            TransactionOpCode.OP_CHECKSIG,
-        ]
-    )
+from .types.common import decode_num
+from .types.script import BaseTransactionScript, ScriptDeserializationFlag
+from .types.transaction import Transaction
+from .vm import OpCodeRejectedError, Stack, evaluate_script
 
 
 class TransactionValidationError(ValueError):
@@ -43,7 +12,7 @@ class TransactionValidationError(ValueError):
 
 def validate_transaction_scripts(
     transaction: Transaction,
-    pubkey_scripts: list[bytes | TransactionScript],
+    pubkey_scripts: list[bytes | BaseTransactionScript],
     *,
     execution_limit: int = 1000,
 ):
@@ -80,10 +49,14 @@ def validate_transaction_scripts(
         )
     for i, pk in enumerate(pubkey_scripts):
         script = (
-            TransactionScript.deserialize(BytesIO(pk)) if isinstance(pk, bytes) else pk
+            BaseTransactionScript.deserialize(BytesIO(pk), ScriptDeserializationFlag(0))
+            if isinstance(pk, bytes)
+            else pk
         )
         z = transaction.signature_hash(i, script)
-        combined_script = transaction.inputs[i].script_signature + script
+        if (script_sig := transaction.inputs[i].script_signature) is None:
+            raise TransactionValidationError("Missing script signature")
+        combined_script = script_sig + script
         try:
             _, stack = evaluate_script(
                 combined_script, z, execution_limit=execution_limit

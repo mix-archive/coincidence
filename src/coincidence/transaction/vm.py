@@ -7,8 +7,11 @@ from typing import Any, Concatenate
 
 from coincidence.crypto import ripemd160, sha1, sha256, verify_signature
 
-from .types import Commands, SignatureHashTypes, TransactionOpCode, TransactionScript
+from .types.opcode import Command, TransactionOpCode
+from .types.script import BaseTransactionScript
+from .types.transaction import SignatureHashTypes
 
+type Commands = deque[Command]
 type Stack = deque[bytes]
 type OpCodeCallback = Callable[Concatenate[Stack, ...], None]
 
@@ -502,7 +505,7 @@ def op_checkmultisigverify(stack: Stack, z: bytes):
 # - OP_CHECKSEQUENCEVERIFY
 
 
-def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = -1):
+def evaluate_script(script: BaseTransactionScript, z: bytes, execution_limit: int = -1):
     """Evaluate a transaction script by processing its commands sequentially.
 
     This function implements the Bitcoin Script evaluation logic, processing opcodes
@@ -530,7 +533,7 @@ def evaluate_script(script: TransactionScript, z: bytes, execution_limit: int = 
 
     """
     stack = deque[bytes]()
-    commands = script.commands.copy()
+    commands = deque(script.commands)
     alternative_args: dict[OpCodeInstructArguments, Any] = {  # pyright:ignore[reportExplicitAny]
         OpCodeInstructArguments.cmds: commands,
         OpCodeInstructArguments.alt_stack: deque[bytes](),
