@@ -66,7 +66,7 @@ class BaseTransactionScript(abc.ABC):
     @override
     def __repr__(self):
         try:
-            commands = repr([*self.commands])
+            commands = repr(self.commands)
         except InvalidOpcodeError:
             commands = "..."
         bytecode = repr(self.bytecode)

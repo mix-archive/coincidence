@@ -40,14 +40,16 @@ def test_common_script_bytecode():
 
     # Test with bytecode
     test_bytes = b"test123"
-    script = CommonTransactionScript(test_bytes)
-    assert script.bytecode == test_bytes
+    script = CommonTransactionScript.from_commands([test_bytes])
+    assert script.commands == (test_bytes,)
+    assert f"commands={script.commands!r}" in repr(script)
 
     # Test from_bytecode method
     script = CommonTransactionScript.from_bytecode(
         test_bytes, ScriptDeserializationFlag(0)
     )
     assert script
+    assert "commands=..." in repr(script)
     assert script.bytecode == test_bytes
 
     # Test from_commands method
