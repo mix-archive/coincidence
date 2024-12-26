@@ -202,7 +202,9 @@ def dissect_script_bytecode(bytecode: bytes) -> tuple[Command, ...]:
             case TransactionOpCode.OP_PUSHDATA4:
                 length = int.from_bytes(reader.read(4), "little")
                 commands.append(reader.read(length))
-            case length if length < TransactionOpCode.OP_PUSHDATA1:
+            case (
+                length
+            ) if TransactionOpCode.OP_0 < length < TransactionOpCode.OP_PUSHDATA1:
                 commands.append(reader.read(length))
             case code if code in TransactionOpCode:
                 commands.append(TransactionOpCode(code))
