@@ -19,7 +19,7 @@ dev = [
     "pytest-sugar>=1.0.0",
     "pytest-cov>=6.0.0",
     "pytest-random-order>=1.1.1",
-    "requests>=2.32.3",
+    "pytest-xdist[psutil]>=3.6.1",
 ]
 
 [tool.basedpyright]
@@ -54,9 +54,12 @@ ignore = [
 distribution = true
 
 [tool.pdm.scripts]
-test = "pytest --cov --random-order --random-order-bucket=global"
+test = "pytest"
 format = "ruff format"
 lint = "ruff check"
+
+[tool.pytest.ini_options]
+addopts = "--cov=. --random-order --random-order-bucket=global -n auto"
 
 [tool.coverage.report]
 exclude_also = [
