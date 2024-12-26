@@ -222,3 +222,28 @@ def test_transaction_coinbase():
         locktime=0,
     )
     assert not multi_input_tx.is_coinbase
+
+
+def test_transaction_input_deserialize_flags():
+    # Test coinbase flag handling
+    coinbase_data = BytesIO(
+        bytes(32)  # Previous transaction (all zeros)
+        + (0xFFFFFFFF).to_bytes(4, "little")  # Previous index
+        + b"\x00"  # Empty script
+        + (0xFFFFFFFF).to_bytes(4, "little")  # Sequence
+    )
+    flags = ScriptDeserializationFlag.FROM_COINBASE
+    tx_input = TransactionInput.deserialize(coinbase_data, flags)
+    assert tx_input.previous_transaction == bytes(32)
+    assert tx_input.previous_index == 0xFFFFFFFF
+
+    # Test non-coinbase with coinbase flag
+    regular_data = BytesIO(
+        bytes.fromhex("ff" * 32)  # Previous transaction (non-zero)
+        + (0).to_bytes(4, "little")  # Previous index
+        + b"\x00"  # Empty script
+        + (0xFFFFFFFF).to_bytes(4, "little")  # Sequence
+    )
+    flags = ScriptDeserializationFlag.FROM_COINBASE
+    tx_input = TransactionInput.deserialize(regular_data, flags)
+    assert type(tx_input.script_signature) is CommonTransactionScript
