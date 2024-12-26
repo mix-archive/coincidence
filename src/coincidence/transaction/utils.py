@@ -1,7 +1,7 @@
-from io import BytesIO
+from collections.abc import Sequence
 
 from .types.common import decode_num
-from .types.script import BaseTransactionScript, ScriptDeserializationFlag
+from .types.script import BaseTransactionScript
 from .types.transaction import Transaction
 from .vm import OpCodeRejectedError, Stack, evaluate_script
 
@@ -12,7 +12,7 @@ class TransactionValidationError(ValueError):
 
 def validate_transaction_scripts(
     transaction: Transaction,
-    pubkey_scripts: list[bytes | BaseTransactionScript],
+    pubkey_scripts: Sequence[BaseTransactionScript],
     *,
     execution_limit: int = 1000,
 ):
@@ -47,14 +47,11 @@ def validate_transaction_scripts(
         raise TransactionValidationError(
             "Number of pubkey scripts does not match number of inputs"
         )
-    for i, pk in enumerate(pubkey_scripts):
-        script = (
-            BaseTransactionScript.deserialize(BytesIO(pk), ScriptDeserializationFlag(0))
-            if isinstance(pk, bytes)
-            else pk
-        )
+    for i, (input_, script) in enumerate(
+        zip(transaction.inputs, pubkey_scripts, strict=True)
+    ):
         z = transaction.signature_hash(i, script)
-        if (script_sig := transaction.inputs[i].script_signature) is None:
+        if (script_sig := input_.script_signature) is None:
             raise TransactionValidationError("Missing script signature")
         combined_script = script_sig + script
         try:

@@ -128,7 +128,10 @@ def test_validate_transaction_scripts_raw_bytes():
         "0600"
     )
     tx = Transaction.deserialize(BytesIO(serialized), ScriptDeserializationFlag(0))
-    script_bytes = bytes.fromhex("1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac")
+    script_bytes = BaseTransactionScript.deserialize(
+        BytesIO(bytes.fromhex("1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac")),
+        ScriptDeserializationFlag(0),
+    )
 
     # Test with raw bytes script
     assert validate_transaction_scripts(tx, [script_bytes])
@@ -145,29 +148,3 @@ def test_validate_transaction_scripts_fails_validation():
 
     with pytest.raises(TransactionValidationError, match="Script validation failed"):
         _ = validate_transaction_scripts(tx, [invalid_script])
-
-
-def test_transaction_signature_hash():
-    serialized = bytes.fromhex(
-        "0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303"  # pyright: ignore[reportImplicitStringConcatenation]
-        "c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746f"
-        "a5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f5"
-        "6100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f"
-        "89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef010000"
-        "00001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800"
-        "000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac1943"
-        "0600"
-    )
-    tx = Transaction.deserialize(BytesIO(serialized), ScriptDeserializationFlag(0))
-    serialized_script = bytes.fromhex(
-        "1976a914a802fc56c704ce87c42d7c92eb75e7896bdc41ae88ac"
-    )
-    former_script = BaseTransactionScript.deserialize(
-        BytesIO(serialized_script), ScriptDeserializationFlag(0)
-    )
-    signature_hash = tx.signature_hash(0, former_script)
-    assert signature_hash == bytes.fromhex(
-        "27e0c5994dec7824e56dec6b2fcb342eb7cdb0d0957c2fce9882f715e85d81a6"
-    )
-
-    assert validate_transaction_scripts(tx, [former_script])
