@@ -30,12 +30,13 @@ class BlockData:
     difficulty: float
     chainwork: str
     nTx: int  # noqa: N815
-    previousblockhash: str
     nextblockhash: str
     strippedsize: int
     size: int
     weight: int
     tx: list[str]
+
+    previousblockhash: str = "0" * 64
 
 
 block_ids: list[str] = []
