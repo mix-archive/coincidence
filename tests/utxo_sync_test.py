@@ -1,8 +1,6 @@
-import shutil
 from io import BytesIO
 from pathlib import Path
 from tarfile import TarFile
-from tempfile import NamedTemporaryFile
 
 import pytest
 from sqlalchemy import create_engine, text
@@ -25,21 +23,18 @@ fixture_file = TarFile.open(Path(__file__).parent / "fixtures.tar.lzma", "r")
 
 @pytest.fixture(scope="session")
 def database_session_factory():
-    with NamedTemporaryFile(suffix=".db") as file:
-        path = Path(file.name)
-        engine = create_engine(f"sqlite:///{path}")
-        with engine.begin() as connection:
-            Base.metadata.create_all(connection)
-        with engine.connect() as connection:
-            _ = connection.execute(text("PRAGMA foreign_keys = ON"))
-            yield sessionmaker(bind=connection)
-        # save the database to disk
-        with engine.begin() as connection:
-            _ = connection.execute(text("VACUUM"))
-        # load the database from disk
-        save_file_path = Path(__file__).parent / "db.sqlite3"
-        save_file_path.unlink(missing_ok=True)
-        shutil.copy(path, save_file_path)
+    engine = create_engine("sqlite:///:memory:")
+    with engine.begin() as connection:
+        Base.metadata.create_all(connection)
+    with engine.connect() as connection:
+        _ = connection.execute(text("PRAGMA foreign_keys = ON"))
+        yield sessionmaker(bind=connection)
+    # save the database to disk
+    save_file_path = Path(__file__).parent / "db.sqlite3"
+    save_file_path.unlink(missing_ok=True)
+    with engine.begin() as connection:
+        _ = connection.execute(text("VACUUM INTO :path"), {"path": str(save_file_path)})
+    engine.dispose()
 
 
 def test_utxo_sync(
@@ -48,9 +43,9 @@ def test_utxo_sync(
     sync_height = pytestconfig.getoption("--utxo-sync-height")
     assert isinstance(sync_height, int)
     for height, member in sorted(
-        (int(Path(member.name).stem), member)
+        (int(path.stem), member)
         for member in fixture_file.getmembers()
-        if member.isfile() and member.name.endswith(".hex")
+        if member.isfile() and (path := Path(member.name)).suffix == ".hex"
     )[:sync_height]:
         file = fixture_file.extractfile(member)
         assert file is not None
@@ -69,5 +64,5 @@ def test_utxo_sync(
         ]
 
         with database_session_factory() as session, session.begin():
-            block_obj = insert_block(session, height, block)
-            _ = insert_transactions(session, block_obj, transactions)
+            _ = insert_block(session, height, block)
+            _ = insert_transactions(session, block.hash, transactions)

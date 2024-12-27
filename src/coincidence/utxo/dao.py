@@ -45,7 +45,7 @@ def insert_block(session: Session, height: int, block: Block):
 
 @wrap_transaction
 def insert_transactions(
-    session: Session, block: schema.Blocks, transactions: Sequence[Transaction]
+    session: Session, block_id: bytes, transactions: Sequence[Transaction]
 ):
     duplicated = set(
         session.scalars(
@@ -60,9 +60,9 @@ def insert_transactions(
             continue
         transaction_obj = schema.Transactions(
             id=transaction.id,
+            block_id=block_id,
             version=transaction.version,
             locktime=transaction.locktime,
-            block=block,
         )
         txs.append(transaction_obj)
     _ = session.execute(insert(schema.Transactions), [instance_dict(tx) for tx in txs])
