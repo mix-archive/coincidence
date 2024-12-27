@@ -9,6 +9,7 @@ from sqlalchemy import (
     Index,
     Integer,
     LargeBinary,
+    PrimaryKeyConstraint,
     String,
     TypeDecorator,
 )
@@ -25,7 +26,11 @@ class Hash256(TypeDecorator[bytes]):
         return value.hex() if value is not None else None
 
     @override
-    def process_result_value(self, value: Any, dialect: Dialect) -> bytes | None:  # pyright:ignore[reportExplicitAny,reportAny]
+    def process_result_value(
+        self,
+        value: Any,  # pyright:ignore[reportExplicitAny,reportAny]
+        dialect: Dialect,
+    ) -> bytes | None:
         return bytes.fromhex(value) if isinstance(value, str) else None
 
 
@@ -33,6 +38,7 @@ class Base(DeclarativeBase):
     pass
 
 
+@final
 class Blocks(Base):
     __tablename__: str = "blocks"
 
@@ -42,7 +48,7 @@ class Blocks(Base):
     )
     height: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
-    timestamp: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     bits: Mapped[int] = mapped_column(Integer, nullable=False)
     nonce: Mapped[int] = mapped_column(Integer, nullable=False)
 
@@ -51,26 +57,28 @@ class Blocks(Base):
         ForeignKey("blocks.id"),
         nullable=True,
         index=True,
-        default=None,
     )
     previous: Mapped["Blocks | None"] = relationship(
         back_populates="next", remote_side=[id]
     )
-    next: Mapped["Blocks | None"] = relationship(back_populates="previous")
+    next: Mapped["Blocks | None"] = relationship(
+        back_populates="previous",
+    )
 
     transactions: Mapped[list["Transactions"]] = relationship(back_populates="block")
 
 
+@final
 class Transactions(Base):
     __tablename__: str = "transactions"
 
-    id: Mapped[bytes] = mapped_column(Hash256, primary_key=True)
+    id: Mapped[bytes] = mapped_column(Hash256, index=True, primary_key=True)
+    block_id: Mapped[bytes] = mapped_column(
+        Hash256, ForeignKey(Blocks.id), index=True, nullable=False
+    )
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     locktime: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    block_id: Mapped[bytes] = mapped_column(
-        Hash256, ForeignKey("blocks.id"), nullable=False, index=True
-    )
     block: Mapped["Blocks"] = relationship(back_populates="transactions")
 
     inputs: Mapped[list["TransactionInputs"]] = relationship(
@@ -81,13 +89,14 @@ class Transactions(Base):
     )
 
 
+@final
 class TransactionOutputs(Base):
     __tablename__: str = "transaction_outputs"
 
     id: Mapped[bytes] = mapped_column(
-        Hash256, ForeignKey("transactions.id"), primary_key=True, index=True
+        Hash256, ForeignKey(Transactions.id), index=True, nullable=False
     )
-    index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    index: Mapped[int] = mapped_column(Integer, nullable=False)
     value: Mapped[int] = mapped_column(Integer, nullable=False)
     script_pubkey: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
 
@@ -97,14 +106,19 @@ class TransactionOutputs(Base):
 
     transaction: Mapped["Transactions"] = relationship(back_populates="outputs")
 
+    __table_args__ = (  # pyright:ignore[reportAny]
+        PrimaryKeyConstraint(id, index),
+    )
 
+
+@final
 class TransactionInputs(Base):
     __tablename__: str = "transaction_inputs"
 
     id: Mapped[bytes] = mapped_column(
-        Hash256, ForeignKey("transactions.id"), primary_key=True, index=True
+        Hash256, ForeignKey(Transactions.id), index=True, nullable=False
     )
-    index: Mapped[int] = mapped_column(Integer, primary_key=True)
+    index: Mapped[int] = mapped_column(Integer, nullable=False)
     script_sig: Mapped[bytes | None] = mapped_column(
         LargeBinary, nullable=True, default=None
     )
@@ -121,7 +135,8 @@ class TransactionInputs(Base):
 
     transaction: Mapped["Transactions"] = relationship(back_populates="inputs")
 
-    __table_args__ = (  # pyright:ignore[reportAny,reportUnannotatedClassAttribute]
+    __table_args__ = (  # pyright:ignore[reportAny]
+        PrimaryKeyConstraint(id, index),
         ForeignKeyConstraint(
             [previous_transaction, previous_index],
             [TransactionOutputs.id, TransactionOutputs.index],
