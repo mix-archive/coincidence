@@ -65,7 +65,7 @@ format = "ruff format"
 lint = "ruff check"
 
 [tool.pytest.ini_options]
-addopts = "--cov=. --random-order --random-order-bucket=global"
+addopts = "--cov=. --random-order --random-order-bucket=global -n auto"
 
 [tool.coverage.report]
 exclude_also = [
