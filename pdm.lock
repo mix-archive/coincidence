@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:c8687b729515446ec116efeb29abc1727c6585f361c9a2c096fa73f48f8f2a57"
+content_hash = "sha256:3231951784c51443f9dc4146933fe1b0d3018e32dda19b2f2a4ca33e67f1c779"
 
 [[metadata.targets]]
 requires_python = ">=3.12"
@@ -335,6 +335,34 @@ summary = ""
 files = [
     {file = "pycparser-2.22-py3-none-any.whl", hash = "sha256:c3702b6d3dd8c7abc1afa565d7e63d53a1d0bd86cdc24edd75470f4de499cfcc"},
     {file = "pycparser-2.22.tar.gz", hash = "sha256:491c8be9c040f5390f5bf44a5b07752bd07f56edf992381b05c701439eec10f6"},
+]
+
+[[package]]
+name = "pyinstrument"
+version = "5.0.0"
+summary = ""
+files = [
+    {file = "pyinstrument-5.0.0-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:dec3529a5351ea160baeef1ef2a6e28b1a7a7b3fb5e9863fae8de6da73d0f69a"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:5a39e3ef84c56183f8274dfd584b8c2fae4783c6204f880513e70ab2440b9137"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b3938f063ee065e05826628dadf1fb32c7d26b22df4a945c22f7fe25ea1ba6a2"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:f18990cc16b2e23b54738aa2f222863e1d36daaaec8f67b1613ddfa41f5b24db"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f3731412b5bfdcef8014518f145140c69384793e218863a33a39ccfe5fb42045"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:02b2eaf38460b14eea646d6bb7f373eb5bb5691d13f788e80bdcb3a4eaa2519e"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-musllinux_1_2_i686.whl", hash = "sha256:e57db06590f13657b2bce8c4d9cf8e9e2bd90bb729bcbbe421c531ba67ad7add"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ddaa3001c1b798ec9bf1266ef476bbc0834b74d547d531f5ed99e7d05ac5d81b"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-win32.whl", hash = "sha256:b69ff982acf5ef2f4e0f32ce9b4b598f256faf88438f233ea3a72f1042707e5b"},
+    {file = "pyinstrument-5.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:0bf4ef061d60befe72366ce0ed4c75dee5be089644de38f9936d2df0bcf44af0"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-macosx_10_13_universal2.whl", hash = "sha256:79a54def2d4aa83a4ed37c6cffc5494ae5de140f0453169eb4f7c744cc249d3a"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:9538f746f166a40c8802ebe5c3e905d50f3faa189869cd71c083b8a639e574bb"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2bbab65cae1483ad8a18429511d1eac9e3efec9f7961f2fd1bf90e1e2d69ef15"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:4351ad041d208c597e296a0e9c2e6e21cc96804608bcafa40cfa168f3c2b8f79"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ceee5252f4580abec29bcc5c965453c217b0d387c412a5ffb8afdcda4e648feb"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:b3050a4e7033103a13cfff9802680e2070a9173e1a258fa3f15a80b4eb9ee278"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-musllinux_1_2_i686.whl", hash = "sha256:3b1f44a34da7810938df615fb7cbc43cd879b42ca6b5cd72e655aee92149d012"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:fde075196c8a3b2be191b8da05b92ff909c78d308f82df56d01a8cfdd6da07b9"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-win32.whl", hash = "sha256:1a9b62a8b54e05e7723eb8b9595fadc43559b73290c87b3b1cb2dc5944559790"},
+    {file = "pyinstrument-5.0.0-cp313-cp313-win_amd64.whl", hash = "sha256:2478d2c55f77ad8e281e67b0dfe7c2176304bb824c307e86e11890f5e68d7feb"},
+    {file = "pyinstrument-5.0.0.tar.gz", hash = "sha256:144f98eb3086667ece461f66324bf1cc1ee0475b399ab3f9ded8449cc76b7c90"},
 ]
 
 [[package]]
