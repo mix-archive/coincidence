@@ -24,6 +24,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "pytest-random-order>=1.1.1",
     "pytest-xdist[psutil]>=3.6.1",
+    "pytest-memray>=1.7.0",
     "httpx[http2]>=0.28.1",
     "pyinstrument>=5.0.0",
 ]
