@@ -14,3 +14,12 @@ def auto_profile(request: pytest.FixtureRequest):
         yield  # Run test
     results_file = PROFILE_ROOT / f"{request.module.__name__}.html"  # pyright:ignore[reportUnknownMemberType]
     profiler.write_html(results_file)
+
+
+def pytest_addoption(parser: pytest.Parser):
+    parser.addoption(
+        "--utxo-sync-height",
+        type=int,
+        default=10000,
+        help="The height of the block to utxo sync",
+    )

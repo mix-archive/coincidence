@@ -42,12 +42,16 @@ def database_session_factory():
         shutil.copy(path, save_file_path)
 
 
-def test_utxo_sync(database_session_factory: sessionmaker[Session]):
+def test_utxo_sync(
+    database_session_factory: sessionmaker[Session], pytestconfig: pytest.Config
+):
+    sync_height = pytestconfig.getoption("--utxo-sync-height")
+    assert isinstance(sync_height, int)
     for height, member in sorted(
         (int(Path(member.name).stem), member)
         for member in fixture_file.getmembers()
         if member.isfile() and member.name.endswith(".hex")
-    )[:10000]:
+    )[:sync_height]:
         file = fixture_file.extractfile(member)
         assert file is not None
         reader = BytesIO(bytes.fromhex(file.read().decode()))
