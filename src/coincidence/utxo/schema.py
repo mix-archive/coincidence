@@ -124,9 +124,7 @@ class TransactionInputs(Base):
     )
     sequence: Mapped[int] = mapped_column(Integer, nullable=False)
 
-    previous_transaction: Mapped[bytes | None] = mapped_column(
-        Hash256, nullable=True, index=True
-    )
+    previous_transaction: Mapped[bytes | None] = mapped_column(Hash256, nullable=True)
     previous_index: Mapped[int | None] = mapped_column(Integer, nullable=True)
     previous: Mapped["TransactionOutputs | None"] = relationship(
         foreign_keys=[previous_transaction, previous_index],
@@ -141,5 +139,5 @@ class TransactionInputs(Base):
             [previous_transaction, previous_index],
             [TransactionOutputs.id, TransactionOutputs.index],
         ),
-        Index(None, previous_index, previous_transaction, unique=True),
+        Index(None, previous_transaction, previous_index, unique=True),
     )

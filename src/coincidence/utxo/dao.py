@@ -3,8 +3,7 @@ from collections.abc import Callable, Sequence
 from typing import Concatenate
 
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import instance_dict
-from sqlalchemy.sql import insert, select
+from sqlalchemy.sql import select
 
 from coincidence.block.types import Block
 from coincidence.transaction.types.transaction import (
@@ -65,7 +64,7 @@ def insert_transactions(
             locktime=transaction.locktime,
         )
         txs.append(transaction_obj)
-    _ = session.execute(insert(schema.Transactions), [instance_dict(tx) for tx in txs])
+    session.bulk_save_objects(txs)
     txs_io: dict[
         bytes, tuple[list[schema.TransactionInputs], list[schema.TransactionOutputs]]
     ] = {}
@@ -99,9 +98,7 @@ def insert_transaction_inputs(
             transaction_input.previous_transaction = tx_input.previous_transaction[::-1]
             transaction_input.previous_index = tx_input.previous_index
         tx_inputs.append(transaction_input)
-    _ = session.execute(
-        insert(schema.TransactionInputs), [instance_dict(tx) for tx in tx_inputs]
-    )
+    session.bulk_save_objects(tx_inputs)
     return tx_inputs
 
 
@@ -118,7 +115,5 @@ def insert_transaction_outputs(
             script_pubkey=tx_output.script_pubkey.bytecode,
         )
         tx_outputs.append(transaction_output)
-    _ = session.execute(
-        insert(schema.TransactionOutputs), [instance_dict(tx) for tx in tx_outputs]
-    )
+    session.bulk_save_objects(tx_outputs)
     return tx_outputs
