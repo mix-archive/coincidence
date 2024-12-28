@@ -5,7 +5,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import cast
 
-import libarchive
+import libarchive  # pyright:ignore[reportMissingTypeStubs]
 import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -17,6 +17,8 @@ from coincidence.transaction.types.transaction import Transaction
 from coincidence.utxo.dao import insert_block, insert_transactions
 from coincidence.utxo.schema import Base
 
+# pyright: reportUnknownMemberType=false, reportPrivateLocalImportUsage=false
+
 
 @pytest.fixture(scope="module")
 def database_session_factory(request: pytest.FixtureRequest):
@@ -25,7 +27,7 @@ def database_session_factory(request: pytest.FixtureRequest):
     save_file_path = (
         Path(__file__).parent
         / ".databases"
-        / f"{request.module.__name__}-{timestamp}.db"  # pyright:ignore[reportUnknownMemberType]
+        / f"{request.module.__name__}-{timestamp}.db"
     )
     save_file_path.parent.mkdir(parents=True, exist_ok=True)
     with engine.begin() as connection:
@@ -52,7 +54,10 @@ def _read_fixtures_tar() -> dict[int, bytes]:
         str(Path(__file__).parent / "fixtures.tar.lzma")
     ) as fixture_file:
         for entry in fixture_file:
-            if not (entry.isfile and (path := Path(entry.pathname)).suffix == ".hex"):
+            if not (
+                entry.isfile
+                and (path := Path(cast(str, entry.pathname))).suffix == ".hex"
+            ):
                 continue
             height, data = int(path.stem), bytearray()
             for block in entry.get_blocks():
@@ -61,8 +66,8 @@ def _read_fixtures_tar() -> dict[int, bytes]:
     return dict(sorted(fixture_file_contents))
 
 
-planned_height_sections: list[tuple[int, int]] = []
 TOTAL_SECTIONS = 1000
+planned_height_sections: list[tuple[int, int]] = []
 
 
 @pytest.fixture
@@ -84,9 +89,7 @@ def utxo_data_at_height(request: pytest.FixtureRequest, pytestconfig: pytest.Con
     return {height: fixture_file_contents[height] for height in range(start, end)}
 
 
-@pytest.mark.random_order(disabled=True)
 @pytest.mark.parametrize("utxo_data_at_height", range(TOTAL_SECTIONS), indirect=True)
-@pytest.mark.xdist_group("sync")
 def test_utxo_sync(
     database_session: Session,
     utxo_data_at_height: dict[int, bytes],
