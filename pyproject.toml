@@ -27,6 +27,7 @@ dev = [
     "pytest-memray>=1.7.0",
     "httpx[http2]>=0.28.1",
     "pyinstrument>=5.0.0",
+    "libarchive-c>=5.1",
 ]
 
 [tool.basedpyright]
@@ -66,7 +67,7 @@ format = "ruff format"
 lint = "ruff check"
 
 [tool.pytest.ini_options]
-addopts = "--cov=. --random-order --random-order-bucket=global -n auto"
+addopts = "--cov=."
 
 [tool.coverage.report]
 exclude_also = [

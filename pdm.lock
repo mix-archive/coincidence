@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:9eb7aa23b9c16aba6ec4c61f24f435996ea262ea60e0280ffc3a092d8e7a4919"
+content_hash = "sha256:37414382f671b6aa3fdfedc034d086be0e2c5c6d95701a27e1ce87f14cd2eca7"
 
 [[metadata.targets]]
 requires_python = ">=3.12"
@@ -305,6 +305,15 @@ dependencies = [
 files = [
     {file = "jinja2-3.1.5-py3-none-any.whl", hash = "sha256:aba0f4dc9ed8013c424088f68a5c226f7d6097ed89b246d7749c2ec4175c6adb"},
     {file = "jinja2-3.1.5.tar.gz", hash = "sha256:8fefff8dc3034e27bb80d67c671eb8a9bc424c0ef4c0826edbff304cceff43bb"},
+]
+
+[[package]]
+name = "libarchive-c"
+version = "5.1"
+summary = ""
+files = [
+    {file = "libarchive-c-5.1.tar.gz", hash = "sha256:7bcce24ea6c0fa3bc62468476c6d2f6264156db2f04878a372027c10615a2721"},
+    {file = "libarchive_c-5.1-py2.py3-none-any.whl", hash = "sha256:8f23af20ef28503223284ec20ec7b695b0d88337c937aec62152a6953ed33a5a"},
 ]
 
 [[package]]
