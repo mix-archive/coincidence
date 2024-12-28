@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = []
 lock_version = "4.5.0"
-content_hash = "sha256:37414382f671b6aa3fdfedc034d086be0e2c5c6d95701a27e1ce87f14cd2eca7"
+content_hash = "sha256:de45ccb2bd3f409e7e933f16bd85463a2cf2e46980ec6febb647ff63054fd542"
 
 [[metadata.targets]]
 requires_python = ">=3.12"
@@ -580,18 +580,6 @@ dependencies = [
 files = [
     {file = "pytest_memray-1.7.0-py3-none-any.whl", hash = "sha256:b896718c1adf6d0cd339dfaaaa5620f035c9919e1199a79b3453804a1254306f"},
     {file = "pytest_memray-1.7.0.tar.gz", hash = "sha256:c18fa907d2210b42f4096c093e2d3416dfc002dcaa450ef3f9ba819bc3dd8f5f"},
-]
-
-[[package]]
-name = "pytest-random-order"
-version = "1.1.1"
-summary = ""
-dependencies = [
-    "pytest",
-]
-files = [
-    {file = "pytest-random-order-1.1.1.tar.gz", hash = "sha256:4472d7d34f1f1c5f3a359c4ffc5c13ed065232f31eca19c8844c1ab406e79080"},
-    {file = "pytest_random_order-1.1.1-py3-none-any.whl", hash = "sha256:882727a8b597ecd06ede28654ffeb8a6d511a1e4abe1054cca7982f2e42008cd"},
 ]
 
 [[package]]
